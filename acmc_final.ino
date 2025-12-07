@@ -170,12 +170,13 @@ void updateControl() {
 AudioOutput_t updateAudio() {
 	int64_t melody_out = 0;
 	if (melody.isEnabled()) {
-		melody_out = melody.next();
-		melody_out = chorus.next(melody_out);
+		int64_t currMelody = melody.next();
+		melody_out = chorus.next(currMelody);
 		melody_out = reverb.next(melody_out);
-	}
-	if (melody2.isEnabled()) {
-		melody_out += melody.next();
+
+		if (melody2.isEnabled()) {
+			melody_out += currMelody << 1;
+		}
 	}
 
 	int64_t out_sample = outputChords[0].nextChord() + melody_out;
@@ -318,17 +319,17 @@ void updateDip(int number, bool up) {
 	case 3:
 		if (up) { // DIP 3 up
 			Serial.println("d3 up");
+			melody2.setEnabled(true);
 		} else { // DIP 3 down
 			Serial.println("d3 down");
+			melody2.setEnabled(false);
 		}
 		break;
 	case 4:
 		if (up) { // DIP 4 up
 			Serial.println("d4 up");
-			melody2.setEnabled(true);
 		} else { // DIP 4 down
 			Serial.println("d4 down");
-			melody2.setEnabled(false);
 		}
 		break;
 	case 5:
