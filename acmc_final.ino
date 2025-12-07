@@ -1,17 +1,14 @@
 /*
-  Basic template for working with a stock MEAP board.
+	Basic template for working with a stock MEAP board.
  */
 
 #define CONTROL_RATE 128 // Hz, powers of 2 are most reliable
 #include <Meap.h> // MEAP library, includes all dependent libraries, including all Mozzi modules
 
-Meap meap; // creates MEAP object to handle inputs and other MEAP library
-           // functions
-MIDI_CREATE_INSTANCE(HardwareSerial, Serial1,
-                     MIDI); // defines MIDI in/out ports
+Meap meap; // creates MEAP object to handle inputs and other MEAP library functions
+MIDI_CREATE_INSTANCE(HardwareSerial, Serial1, MIDI); // defines MIDI in/out ports
 
 // ---------- YOUR GLOBAL VARIABLES BELOW ----------
-#include <string>
 #include <tables/saw8192_int16.h> // loads saw wave
 #include <tables/sin8192_int16.h>
 #include <tables/sq8192_int16.h>  // loads square wave
@@ -35,7 +32,7 @@ float swing = 0;
 
 // Effects
 Chorus chorus(0.0, 0.0, 0.5);
-Reverb reverb;
+Reverb reverb(0.0, 0.0, 0.0, 1.0);
 
 bool modify = true;
 bool hasWind = false;
@@ -53,7 +50,7 @@ State *currState;
 // mSample<punk_rock_drums_NUM_CELLS, AUDIO_RATE, int16_t>
 // punkRockDrums(punk_rock_drums_DATA);
 mSample<neo_soul_drums_NUM_CELLS, AUDIO_RATE, int16_t>
-    neoSoulDrums(neo_soul_drums_DATA);
+	neoSoulDrums(neo_soul_drums_DATA);
 bool playDrums = false;
 
 /*
@@ -65,133 +62,130 @@ MultiResonantFilter filter;
 
 void setup() {
 
-  Serial.begin(115200); // begins Serial communication with computer
-  meap.begin();         // sets up MEAP object
-  Serial1.begin(31250, SERIAL_8N1, meap.MEAP_MIDI_IN_PIN,
-                meap.MEAP_MIDI_OUT_PIN); // sets up MIDI: baud rate, serial
-                                         // mode, rx pin, tx pin
-  startMozzi(
-      CONTROL_RATE); // starts Mozzi engine with control rate defined above
+	Serial.begin(115200); // begins Serial communication with computer
+	meap.begin();         // sets up MEAP object
+	// sets up MIDI: baud rate, serialmode, rx pin, tx pin
+	Serial1.begin(31250, SERIAL_8N1, meap.MEAP_MIDI_IN_PIN, meap.MEAP_MIDI_OUT_PIN);
+	startMozzi(CONTROL_RATE); // starts Mozzi engine with control rate defined above
 
-  // ---------- YOUR SETUP CODE BELOW ----------
-  currState = PhraseModel::createPhraseGraph(tonicMidi);
+	// ---------- YOUR SETUP CODE BELOW ----------
+	currState = PhraseModel::createPhraseGraph(tonicMidi);
 
-  // Wind
-  white_noise.setFreq(1);
+	// Wind
+	white_noise.setFreq(1);
 
-  // Drums
-  neoSoulDrums.setLoopingOn();
+	// Drums
+	neoSoulDrums.setLoopingOn();
 }
 
 void loop() {
-  audioHook(); // handles Mozzi audio generation behind the scenes
+	audioHook(); // handles Mozzi audio generation behind the scenes
 }
 
 /** Called automatically at rate specified by CONTROL_RATE macro, most of your
  * code should live in here
  */
 void updateControl() {
-  meap.readInputs();
-  // ---------- YOUR updateControl CODE BELOW ----------
-  if (potCtrl == MELODY_RHYTHM && modify) {
-    sixteenthLength = map(meap.pot_vals[1], 0, 4095, 100, 2000);
-    // neoSoulDrums.setSpeed(250.0 / sixteenthLength);
-  }
+	meap.readInputs();
+	// ---------- YOUR updateControl CODE BELOW ----------
+	if (potCtrl == MELODY_RHYTHM && modify) {
+		sixteenthLength = map(meap.pot_vals[1], 0, 4095, 100, 2000);
+		// neoSoulDrums.setSpeed(250.0 / sixteenthLength);
+	}
 
-  if (chordMetro.ready()) {
-    outputChords[0] = currState->getChord();
-    currState = currState->nextState();
+	if (chordMetro.ready()) {
+		outputChords[0] = currState->getChord();
+		currState = currState->nextState();
 
-    if (currState == &cadenceEnd) {
-      chordMetro.start(sixteenthLength * 2);
-    } else {
-      chordMetro.start(sixteenthLength);
-    }
+		if (currState == &cadenceEnd) {
+			chordMetro.start(sixteenthLength * 2);
+		} else {
+			chordMetro.start(sixteenthLength);
+		}
 
-    melodyNumber = 0;
-    melodyMetro.start(0);
-  }
+		melodyNumber = 0;
+		melodyMetro.start(0);
+	}
 
-  if (melodyMetro.ready()) {
-    // switch (melodyPadNumber) {
-    // case -1:
-    //   melodyMetro.start(sixteenthLength / 4);
-    //   melody.setFreq(0);
-    //   break;
-    // case 0:
-    //   melodyMetro.start(sixteenthLength / 4);
-    //   melodyNotes = outputChords[0].getMidiNotes();
-    //   melody.setFreq(mtof(melodyNotes[melodyNumber] + 12));
-    //   melodyNumber = (melodyNumber + 1) % 4;
-    //   break;
-    // case 1:
-    //   swing = map(meap.pot_vals[0], 0, 4095, 0, 100) / 100.0;
-    //   if (melodyNumber == 0 || melodyNumber == 2) {
-    //     melodyMetro.start(sixteenthLength / 4 * (1 + swing));
-    //   } else if (melodyNumber == 1 || melodyNumber == 3) {
-    //     melodyMetro.start(sixteenthLength / 4 * (1 - swing));
-    //   }
-    //   melodyNotes = outputChords[0].getMidiNotes();
-    //   melody.setFreq(mtof(melodyNotes[melodyNumber] + 12));
-    //   melodyNumber = (melodyNumber + 1) % 4;
-    //   break;
-    // }
+	if (melodyMetro.ready()) {
+	// switch (melodyPadNumber) {
+	// case -1:
+	//   melodyMetro.start(sixteenthLength / 4);
+	//   melody.setFreq(0);
+	//   break;
+	// case 0:
+	//   melodyMetro.start(sixteenthLength / 4);
+	//   melodyNotes = outputChords[0].getMidiNotes();
+	//   melody.setFreq(mtof(melodyNotes[melodyNumber] + 12));
+	//   melodyNumber = (melodyNumber + 1) % 4;
+	//   break;
+	// case 1:
+	//   swing = map(meap.pot_vals[0], 0, 4095, 0, 100) / 100.0;
+	//   if (melodyNumber == 0 || melodyNumber == 2) {
+	//     melodyMetro.start(sixteenthLength / 4 * (1 + swing));
+	//   } else if (melodyNumber == 1 || melodyNumber == 3) {
+	//     melodyMetro.start(sixteenthLength / 4 * (1 - swing));
+	//   }
+	//   melodyNotes = outputChords[0].getMidiNotes();
+	//   melody.setFreq(mtof(melodyNotes[melodyNumber] + 12));
+	//   melodyNumber = (melodyNumber + 1) % 4;
+	//   break;
+	// }
 
-    if (potCtrl == MELODY_RHYTHM && modify) {
-      swing = map(meap.pot_vals[0], 0, 4095, 0, 100) / 100.0;
-    }
-    if (melodyNumber == 0 || melodyNumber == 2) {
-      melodyMetro.start(sixteenthLength / 4 * (1 + swing));
-    } else if (melodyNumber == 1 || melodyNumber == 3) {
-      melodyMetro.start(sixteenthLength / 4 * (1 - swing));
-    }
-    melodyNotes = outputChords[0].getMidiNotes();
-    melody.setFreq(mtof(melodyNotes[melodyNumber] + 12));
-    melodyNumber = (melodyNumber + 1) % 4;
-  }
+		if (potCtrl == MELODY_RHYTHM && modify) {
+			swing = map(meap.pot_vals[0], 0, 4095, 0, 100) / 100.0;
+		}
+		if (melodyNumber == 0 || melodyNumber == 2) {
+			melodyMetro.start(sixteenthLength / 4 * (1 + swing));
+		} else if (melodyNumber == 1 || melodyNumber == 3) {
+			melodyMetro.start(sixteenthLength / 4 * (1 - swing));
+		}
+		melodyNotes = outputChords[0].getMidiNotes();
+		melody.setFreq(mtof(melodyNotes[melodyNumber] + 12));
+		melodyNumber = (melodyNumber + 1) % 4;
+	}
 
-  // Wind
-  if (hasWind) {
-    int cutoff = map(meap.pot_vals[0], 0, 4095, 0, 255);
-    int resonance = map(meap.pot_vals[1], 0, 4095, 0, 255);
-    filter.setCutoffFreqAndResonance(cutoff, resonance);
-  }
+	// Wind
+	if (hasWind) {
+		int cutoff = map(meap.pot_vals[0], 0, 4095, 0, 255);
+		int resonance = map(meap.pot_vals[1], 0, 4095, 0, 255);
+		filter.setCutoffFreqAndResonance(cutoff, resonance);
+	}
 
-  // Effects
-  if (potCtrl == CHORUS && modify) {
-    chorus.setModFreq(map(meap.pot_vals[0], 0, 4095, 0, 500) / 100.0);
-    chorus.setModDepth(meap.pot_vals[1] / 4095.0);
-  }
-  if (potCtrl == REVERB && modify) {
-    reverb.setDecay(meap.pot_vals[0] / 4095.0);
-    reverb.setMix(meap.pot_vals[1] / 4095.0);
-  }
+	// Effects
+	if (potCtrl == CHORUS && modify) {
+		chorus.setModFreq(map(meap.pot_vals[0], 0, 4095, 0, 500) / 100.0);
+		chorus.setModDepth(meap.pot_vals[1] / 4095.0);
+	}
+	if (potCtrl == REVERB && modify) {
+		reverb.setDecay(meap.pot_vals[0] / 4095.0);
+		reverb.setMix(meap.pot_vals[1] / 4095.0);
+	}
 }
 
 /** Called automatically at rate specified by AUDIO_RATE macro, for calculating
  * samples sent to DAC, too much code in here can disrupt your output
  */
 AudioOutput_t updateAudio() {
-  int64_t melody_out = melody.next();
-  melody_out = chorus.next(melody_out);
-  melody_out = reverb.next(melody_out);
+	int64_t melody_out = melody.next();
+	melody_out = chorus.next(melody_out);
+	melody_out = reverb.next(melody_out);
 
-  int64_t out_sample = outputChords[0].nextChord() + melody_out;
-  if (playDrums) {
-    out_sample += neoSoulDrums.next() << 4;
-  }
+	int64_t out_sample = outputChords[0].nextChord() + melody_out;
+	if (playDrums) {
+		out_sample += neoSoulDrums.next() << 4;
+	}
 
-  // Wind
-  int64_t white_noise_out_sample = white_noise.next();
-  filter.next(white_noise_out_sample);
-  white_noise_out_sample = filter.low();
+	// Wind
+	int64_t white_noise_out_sample = white_noise.next();
+	filter.next(white_noise_out_sample);
+	white_noise_out_sample = filter.low();
 
-  if (hasWind) {
-    out_sample += white_noise_out_sample << 4;
-  }
+	if (hasWind) {
+		out_sample += white_noise_out_sample << 4;
+	}
 
-  return StereoOutput::fromNBit(20, (out_sample * meap.volume_val) >> 12,
-                                (out_sample * meap.volume_val) >> 12);
+	return StereoOutput::fromNBit(20, (out_sample * meap.volume_val) >> 12, (out_sample * meap.volume_val) >> 12);
 }
 
 /**
@@ -201,75 +195,78 @@ AudioOutput_t updateAudio() {
  * bool pressed: true indicates pad was pressed, false indicates it was released
  */
 void updateTouch(int number, bool pressed) {
-  if (pressed) { // Any pad pressed
-    melodyPadNumber = number;
-  } else { // Any pad released
-    melodyPadNumber = -1;
-  }
-  switch (number) {
-  case 0:
-    if (pressed) { // Pad 0 pressed
-      Serial.println("t0 pressed ");
-      melody.setTable(sin8192_int16_DATA);
-    } else { // Pad 0 released
-      Serial.println("t0 released");
-    }
-    break;
-  case 1:
-    if (pressed) { // Pad 1 pressed
-      Serial.println("t1 pressed");
-      melody.setTable(sq8192_int16_DATA);
-    } else { // Pad 1 released
-      Serial.println("t1 released");
-    }
-    break;
-  case 2:
-    if (pressed) { // Pad 2 pressed
-      Serial.println("t2 pressed");
-      melody.setTable(saw8192_int16_DATA);
-    } else { // Pad 2 released
-      Serial.println("t2 released");
-    }
-    break;
-  case 3:
-    if (pressed) { // Pad 3 pressed
-      Serial.println("t3 pressed");
-      hasWind = !hasWind;
-    } else { // Pad 3 released
-      Serial.println("t3 released");
-    }
-    break;
-  case 4:
-    if (pressed) { // Pad 4 pressed
-      Serial.println("t4 pressed");
-      playDrums = !playDrums;
-    } else { // Pad 4 released
-      Serial.println("t4 released");
-    }
-    break;
-  case 5:
-    if (pressed) { // Pad 5 pressed
-      Serial.println("t5 pressed");
-    } else { // Pad 5 released
-      Serial.println("t5 released");
-    }
-    break;
-  case 6:
-    if (pressed) { // Pad 6 pressed
-      Serial.println("t6 pressed");
-    } else { // Pad 6 released
-      Serial.println("t6 released");
-    }
-    break;
-  case 7:
-    if (pressed) { // Pad 7 pressed
-      Serial.println("t7 pressed");
-      modify = !modify;
-    } else { // Pad 7 released
-      Serial.println("t7 released");
-    }
-    break;
-  }
+	if (pressed) { // Any pad pressed
+	melodyPadNumber = number;
+	} else { // Any pad released
+	melodyPadNumber = -1;
+	}
+	switch (number) {
+	case 0:
+	if (pressed) { // Pad 0 pressed
+		Serial.println("t0 pressed ");
+		potCtrl = MELODY_RHYTHM;
+		melody.setTable(sin8192_int16_DATA);
+		// melody.setTable(sq8192_int16_DATA);
+		// melody.setTable(saw8192_int16_DATA);
+	} else { // Pad 0 released
+		Serial.println("t0 released");
+	}
+	break;
+	case 1:
+	if (pressed) { // Pad 1 pressed
+		Serial.println("t1 pressed");
+		potCtrl = CHORUS;
+	} else { // Pad 1 released
+		Serial.println("t1 released");
+	}
+	break;
+	case 2:
+	if (pressed) { // Pad 2 pressed
+		Serial.println("t2 pressed");
+		potCtrl = REVERB;
+	} else { // Pad 2 released
+		Serial.println("t2 released");
+	}
+	break;
+	case 3:
+	if (pressed) { // Pad 3 pressed
+		Serial.println("t3 pressed");
+		hasWind = !hasWind;
+	} else { // Pad 3 released
+		Serial.println("t3 released");
+	}
+	break;
+	case 4:
+	if (pressed) { // Pad 4 pressed
+		Serial.println("t4 pressed");
+		playDrums = !playDrums;
+	} else { // Pad 4 released
+		Serial.println("t4 released");
+	}
+	break;
+	case 5:
+	if (pressed) { // Pad 5 pressed
+		Serial.println("t5 pressed");
+	} else { // Pad 5 released
+		Serial.println("t5 released");
+	}
+	break;
+	case 6:
+	if (pressed) { // Pad 6 pressed
+		Serial.println("t6 pressed");
+	} else { // Pad 6 released
+		Serial.println("t6 released");
+	}
+	break;
+	case 7:
+	if (pressed) { // Pad 7 pressed
+		Serial.println("t7 pressed");
+		modify = !modify;
+	} else { // Pad 7 released
+		Serial.println("t7 released");
+	}
+	break;
+	}
 }
 
 /**
@@ -280,74 +277,74 @@ void updateTouch(int number, bool pressed) {
  * toggled
  */
 void updateDip(int number, bool up) {
-  if (up) { // Any DIP toggled up
-  } else {  // Any DIP toggled down
-  }
-  switch (number) {
-  case 0:
-    if (up) { // DIP 0 up
-      Serial.println("d0 up");
+	if (up) { // Any DIP toggled up
+	} else {  // Any DIP toggled down
+	}
+	switch (number) {
+	case 0:
+	if (up) { // DIP 0 up
+		Serial.println("d0 up");
 
-    } else { // DIP 0 down
-      Serial.println("d0 down");
-    }
-    break;
-  case 1:
-    if (up) { // DIP 1 up
-      Serial.println("d1 up");
-      chorus.setEnabled(true);
-      potCtrl = CHORUS;
-    } else { // DIP 1 down
-      Serial.println("d1 down");
-      chorus.setEnabled(false);
-      potCtrl = MELODY_RHYTHM;
-    }
-    break;
-  case 2:
-    if (up) { // DIP 2 up
-      Serial.println("d2 up");
-      reverb.setEnabled(true);
-      potCtrl = REVERB;
-    } else { // DIP 2 down
-      Serial.println("d2 down");
-      reverb.setEnabled(false);
-      potCtrl = MELODY_RHYTHM;
-    }
-    break;
-  case 3:
-    if (up) { // DIP 3 up
-      Serial.println("d3 up");
-    } else { // DIP 3 down
-      Serial.println("d3 down");
-    }
-    break;
-  case 4:
-    if (up) { // DIP 4 up
-      Serial.println("d4 up");
-    } else { // DIP 4 down
-      Serial.println("d4 down");
-    }
-    break;
-  case 5:
-    if (up) { // DIP 5 up
-      Serial.println("d5 up");
-    } else { // DIP 5 down
-      Serial.println("d5 down");
-    }
-    break;
-  case 6:
-    if (up) { // DIP 6 up
-      Serial.println("d6 up");
-    } else { // DIP 6 down
-      Serial.println("d6 down");
-    }
-    break;
-  case 7:
-    if (up) { // DIP 7 up
-      Serial.println("d7 up");
-    } else { // DIP 7 down
-      Serial.println("d7 down");
-    }
-    break;
-  }
+	} else { // DIP 0 down
+		Serial.println("d0 down");
+	}
+	break;
+	case 1:
+	if (up) { // DIP 1 up
+		Serial.println("d1 up");
+		chorus.setEnabled(true);
+		potCtrl = CHORUS;
+	} else { // DIP 1 down
+		Serial.println("d1 down");
+		chorus.setEnabled(false);
+		potCtrl = MELODY_RHYTHM;
+	}
+	break;
+	case 2:
+	if (up) { // DIP 2 up
+		Serial.println("d2 up");
+		reverb.setEnabled(true);
+		potCtrl = REVERB;
+	} else { // DIP 2 down
+		Serial.println("d2 down");
+		reverb.setEnabled(false);
+		potCtrl = MELODY_RHYTHM;
+	}
+	break;
+	case 3:
+	if (up) { // DIP 3 up
+		Serial.println("d3 up");
+	} else { // DIP 3 down
+		Serial.println("d3 down");
+	}
+	break;
+	case 4:
+	if (up) { // DIP 4 up
+		Serial.println("d4 up");
+	} else { // DIP 4 down
+		Serial.println("d4 down");
+	}
+	break;
+	case 5:
+	if (up) { // DIP 5 up
+		Serial.println("d5 up");
+	} else { // DIP 5 down
+		Serial.println("d5 down");
+	}
+	break;
+	case 6:
+	if (up) { // DIP 6 up
+		Serial.println("d6 up");
+	} else { // DIP 6 down
+		Serial.println("d6 down");
+	}
+	break;
+	case 7:
+	if (up) { // DIP 7 up
+		Serial.println("d7 up");
+	} else { // DIP 7 down
+		Serial.println("d7 down");
+	}
+	break;
+	}
 }
