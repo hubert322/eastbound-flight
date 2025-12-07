@@ -26,7 +26,7 @@ EventDelay melodyMetro;
 Chord outputChords[1];
 
 Melody<sin8192_int16_NUM_CELLS, AUDIO_RATE, int16_t> melody(sin8192_int16_DATA);
-Melody<sin8192_int16_NUM_CELLS, AUDIO_RATE, int16_t> melody2(sin8192_int16_DATA);
+Melody<sin8192_int16_NUM_CELLS, AUDIO_RATE, int16_t> melody2(sin8192_int16_DATA, "Sin");
 int *melodyNotes;
 int melodyNumber = 0;
 float swing = 0;
@@ -46,7 +46,7 @@ float storedReverbMix = 0.0;
 int storedWindCutoff = 0;
 int storedWindResonance = 0;
 
-enum PotCtrl { MELODY_RHYTHM, CHORUS, REVERB };
+enum PotCtrl { MELODY_RHYTHM, CHORUS, REVERB, MELODY_2_SOUND };
 PotCtrl potCtrl = MELODY_RHYTHM;
 
 int tonicMidi = 44;
@@ -83,6 +83,13 @@ void setup() {
 
 	// Drums
 	neoSoulDrums.setLoopingOn();
+
+	// Melody 2 Configuration
+	melody2.addTable(tri8192_int16_DATA, "Tri"); // Index 1
+	melody2.addTable(sq8192_int16_DATA, "Sq");	 // Index 2
+	melody2.addTable(saw8192_int16_DATA, "Saw"); // Index 3
+	melody2.setWave1(0);						 // Sine
+	melody2.setWave2(1);						 // Triangle
 }
 
 void loop() {
@@ -118,7 +125,12 @@ void printStatus() {
 
 	// DIP 3: Melody2
 	Serial.print("DIP 3 (Melody2): ");
-	Serial.println(melody2.isEnabled() ? "ON" : "OFF");
+	Serial.print(melody2.isEnabled() ? "ON" : "OFF");
+	Serial.print(" | Morph: ");
+	Serial.print(melody2.getMorphStatus());
+	Serial.print(" (");
+	Serial.print(melody2.getMorph());
+	Serial.println(")");
 
 	// Other Controls
 	Serial.print("Drums: ");
@@ -144,6 +156,9 @@ void printStatus() {
 		break;
 	case REVERB:
 		Serial.println("REVERB");
+		break;
+	case MELODY_2_SOUND:
+		Serial.println("MELODY_2_SOUND");
 		break;
 	}
 	Serial.print("Current Pot Values: ");
@@ -189,6 +204,7 @@ void updateControl() {
 		}
 		melodyNotes = outputChords[0].getMidiNotes();
 		melody.setFreq(mtof(melodyNotes[melodyNumber] + 12));
+		melody2.setFreq(mtof(melodyNotes[melodyNumber] + 12));
 		melodyNumber = (melodyNumber + 1) % 4;
 	}
 
@@ -215,6 +231,10 @@ void updateControl() {
 		reverb.setMix(storedReverbMix);
 	}
 
+	if (potCtrl == MELODY_2_SOUND) {
+		melody2.setMorph(meap.pot_vals[0]);
+	}
+
 	static int lastPot0 = -1;
 	static int lastPot1 = -1;
 	int potEpsilon = 20;
@@ -231,14 +251,11 @@ void updateControl() {
  */
 AudioOutput_t updateAudio() {
 	int64_t melody_out = 0;
-	int64_t currMelody = melody.next();
-	if (melody.isEnabled()) {
-		melody_out = chorus.next(currMelody);
-		melody_out = reverb.next(melody_out);
-	}
-	if (melody2.isEnabled()) {
-		melody_out += currMelody << 1;
-	}
+	melody_out = melody.next();
+	melody_out = chorus.next(melody_out);
+	melody_out = reverb.next(melody_out);
+
+	melody_out += melody2.next() << 1;
 
 	int64_t out_sample = outputChords[0].nextChord() + melody_out;
 	if (playDrums) {
@@ -265,7 +282,7 @@ AudioOutput_t updateAudio() {
  */
 void updateTouch(int number, bool pressed) {
 	if (pressed) { // Any pad pressed
-	} else { // Any pad released
+	} else {	   // Any pad released
 	}
 	switch (number) {
 	case 0:
@@ -298,7 +315,7 @@ void updateTouch(int number, bool pressed) {
 	case 3:
 		if (pressed) { // Pad 3 pressed
 			Serial.println("t3 pressed");
-			hasWind = !hasWind;
+			potCtrl = MELODY_2_SOUND;
 		} else { // Pad 3 released
 			Serial.println("t3 released");
 		}
@@ -321,6 +338,7 @@ void updateTouch(int number, bool pressed) {
 	case 6:
 		if (pressed) { // Pad 6 pressed
 			Serial.println("t6 pressed");
+			hasWind = !hasWind;
 		} else { // Pad 6 released
 			Serial.println("t6 released");
 		}
