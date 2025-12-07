@@ -231,14 +231,13 @@ void updateControl() {
  */
 AudioOutput_t updateAudio() {
 	int64_t melody_out = 0;
+	int64_t currMelody = melody.next();
 	if (melody.isEnabled()) {
-		int64_t currMelody = melody.next();
 		melody_out = chorus.next(currMelody);
 		melody_out = reverb.next(melody_out);
-
-		if (melody2.isEnabled()) {
-			melody_out += currMelody << 1;
-		}
+	}
+	if (melody2.isEnabled()) {
+		melody_out += currMelody << 1;
 	}
 
 	int64_t out_sample = outputChords[0].nextChord() + melody_out;
