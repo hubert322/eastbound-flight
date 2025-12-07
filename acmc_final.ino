@@ -1,6 +1,6 @@
 /*
-	Basic template for working with a stock MEAP board.
- */
+    Basic template for working with a stock MEAP board.
+*/
 
 #define CONTROL_RATE 128 // Hz, powers of 2 are most reliable
 #include <Meap.h> // MEAP library, includes all dependent libraries, including all Mozzi modules
@@ -17,6 +17,7 @@ MIDI_CREATE_INSTANCE(HardwareSerial, Serial1, MIDI); // defines MIDI in/out port
 #include "neo_soul_drums.h"
 
 #include "effects.h"
+#include "melody.h"
 #include "phrase_model.h"
 
 EventDelay chordMetro;
@@ -24,7 +25,8 @@ EventDelay melodyMetro;
 
 Chord outputChords[1];
 
-mOscil<sin8192_int16_NUM_CELLS, AUDIO_RATE, int16_t> melody(sin8192_int16_DATA);
+Melody<sin8192_int16_NUM_CELLS, AUDIO_RATE, int16_t> melody(sin8192_int16_DATA);
+Melody<sin8192_int16_NUM_CELLS, AUDIO_RATE, int16_t> melody2(sin8192_int16_DATA);
 int *melodyNotes;
 int melodyNumber = 0;
 int melodyPadNumber = -1;
@@ -32,7 +34,7 @@ float swing = 0;
 
 // Effects
 Chorus chorus(0.0, 0.0, 0.5);
-Reverb reverb(0.0, 0.0, 0.0, 1.0);
+Reverb reverb(0.0, 0.8, 0.3, 0.0);
 
 bool modify = true;
 bool hasWind = false;
@@ -49,8 +51,7 @@ State *currState;
 // Drums
 // mSample<punk_rock_drums_NUM_CELLS, AUDIO_RATE, int16_t>
 // punkRockDrums(punk_rock_drums_DATA);
-mSample<neo_soul_drums_NUM_CELLS, AUDIO_RATE, int16_t>
-	neoSoulDrums(neo_soul_drums_DATA);
+mSample<neo_soul_drums_NUM_CELLS, AUDIO_RATE, int16_t> neoSoulDrums(neo_soul_drums_DATA);
 bool playDrums = false;
 
 /*
@@ -108,29 +109,29 @@ void updateControl() {
 	}
 
 	if (melodyMetro.ready()) {
-	// switch (melodyPadNumber) {
-	// case -1:
-	//   melodyMetro.start(sixteenthLength / 4);
-	//   melody.setFreq(0);
-	//   break;
-	// case 0:
-	//   melodyMetro.start(sixteenthLength / 4);
-	//   melodyNotes = outputChords[0].getMidiNotes();
-	//   melody.setFreq(mtof(melodyNotes[melodyNumber] + 12));
-	//   melodyNumber = (melodyNumber + 1) % 4;
-	//   break;
-	// case 1:
-	//   swing = map(meap.pot_vals[0], 0, 4095, 0, 100) / 100.0;
-	//   if (melodyNumber == 0 || melodyNumber == 2) {
-	//     melodyMetro.start(sixteenthLength / 4 * (1 + swing));
-	//   } else if (melodyNumber == 1 || melodyNumber == 3) {
-	//     melodyMetro.start(sixteenthLength / 4 * (1 - swing));
-	//   }
-	//   melodyNotes = outputChords[0].getMidiNotes();
-	//   melody.setFreq(mtof(melodyNotes[melodyNumber] + 12));
-	//   melodyNumber = (melodyNumber + 1) % 4;
-	//   break;
-	// }
+		// switch (melodyPadNumber) {
+		// case -1:
+		//   melodyMetro.start(sixteenthLength / 4);
+		//   melody.setFreq(0);
+		//   break;
+		// case 0:
+		//   melodyMetro.start(sixteenthLength / 4);
+		//   melodyNotes = outputChords[0].getMidiNotes();
+		//   melody.setFreq(mtof(melodyNotes[melodyNumber] + 12));
+		//   melodyNumber = (melodyNumber + 1) % 4;
+		//   break;
+		// case 1:
+		//   swing = map(meap.pot_vals[0], 0, 4095, 0, 100) / 100.0;
+		//   if (melodyNumber == 0 || melodyNumber == 2) {
+		//     melodyMetro.start(sixteenthLength / 4 * (1 + swing));
+		//   } else if (melodyNumber == 1 || melodyNumber == 3) {
+		//     melodyMetro.start(sixteenthLength / 4 * (1 - swing));
+		//   }
+		//   melodyNotes = outputChords[0].getMidiNotes();
+		//   melody.setFreq(mtof(melodyNotes[melodyNumber] + 12));
+		//   melodyNumber = (melodyNumber + 1) % 4;
+		//   break;
+		// }
 
 		if (potCtrl == MELODY_RHYTHM && modify) {
 			swing = map(meap.pot_vals[0], 0, 4095, 0, 100) / 100.0;
@@ -167,9 +168,15 @@ void updateControl() {
  * samples sent to DAC, too much code in here can disrupt your output
  */
 AudioOutput_t updateAudio() {
-	int64_t melody_out = melody.next();
-	melody_out = chorus.next(melody_out);
-	melody_out = reverb.next(melody_out);
+	int64_t melody_out = 0;
+	if (melody.isEnabled()) {
+		melody_out = melody.next();
+		melody_out = chorus.next(melody_out);
+		melody_out = reverb.next(melody_out);
+	}
+	if (melody2.isEnabled()) {
+		melody_out += melody.next();
+	}
 
 	int64_t out_sample = outputChords[0].nextChord() + melody_out;
 	if (playDrums) {
@@ -284,45 +291,44 @@ void updateDip(int number, bool up) {
 	case 0:
 		if (up) { // DIP 0 up
 			Serial.println("d0 up");
-
+			melody.setEnabled(true);
 		} else { // DIP 0 down
 			Serial.println("d0 down");
+			melody.setEnabled(false);
 		}
 		break;
 	case 1:
 		if (up) { // DIP 1 up
 			Serial.println("d1 up");
 			chorus.setEnabled(true);
-			potCtrl = CHORUS;
 		} else { // DIP 1 down
 			Serial.println("d1 down");
 			chorus.setEnabled(false);
-			potCtrl = MELODY_RHYTHM;
 		}
 		break;
 	case 2:
 		if (up) { // DIP 2 up
 			Serial.println("d2 up");
 			reverb.setEnabled(true);
-			potCtrl = REVERB;
 		} else { // DIP 2 down
 			Serial.println("d2 down");
 			reverb.setEnabled(false);
-			potCtrl = MELODY_RHYTHM;
 		}
 		break;
 	case 3:
-			if (up) { // DIP 3 up
-				Serial.println("d3 up");
-			} else { // DIP 3 down
-				Serial.println("d3 down");
-			}
-			break;
+		if (up) { // DIP 3 up
+			Serial.println("d3 up");
+		} else { // DIP 3 down
+			Serial.println("d3 down");
+		}
+		break;
 	case 4:
 		if (up) { // DIP 4 up
 			Serial.println("d4 up");
+			melody2.setEnabled(true);
 		} else { // DIP 4 down
 			Serial.println("d4 down");
+			melody2.setEnabled(false);
 		}
 		break;
 	case 5:

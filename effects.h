@@ -2,22 +2,7 @@
 #define EFFECTS_H_
 
 #include <Meap.h>        // MEAP library, includes all dependent libraries, including all Mozzi modules
-
-class Enableable {
-private:
-  bool isEnabled_ = false;
-
-public:
-  virtual ~Enableable() = default;
-
-  void setEnabled(bool enabled) {
-    isEnabled_ = enabled;
-  }
-
-  bool isEnabled() {
-    return  isEnabled_;
-  }
-};
+#include "enableable.h"
 
 template<typename T = int32_t>
 class Chorus : public mChorus<T>, public Enableable {
