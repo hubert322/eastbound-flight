@@ -196,76 +196,76 @@ AudioOutput_t updateAudio() {
  */
 void updateTouch(int number, bool pressed) {
 	if (pressed) { // Any pad pressed
-	melodyPadNumber = number;
+		melodyPadNumber = number;
 	} else { // Any pad released
-	melodyPadNumber = -1;
+		melodyPadNumber = -1;
 	}
 	switch (number) {
 	case 0:
-	if (pressed) { // Pad 0 pressed
-		Serial.println("t0 pressed ");
-		potCtrl = MELODY_RHYTHM;
-		melody.setTable(sin8192_int16_DATA);
-		// melody.setTable(sq8192_int16_DATA);
-		// melody.setTable(saw8192_int16_DATA);
-	} else { // Pad 0 released
-		Serial.println("t0 released");
-	}
-	break;
+		if (pressed) { // Pad 0 pressed
+			Serial.println("t0 pressed ");
+			potCtrl = MELODY_RHYTHM;
+			melody.setTable(sin8192_int16_DATA);
+			// melody.setTable(sq8192_int16_DATA);
+			// melody.setTable(saw8192_int16_DATA);
+		} else { // Pad 0 released
+			Serial.println("t0 released");
+		}
+		break;
 	case 1:
-	if (pressed) { // Pad 1 pressed
-		Serial.println("t1 pressed");
-		potCtrl = CHORUS;
-	} else { // Pad 1 released
-		Serial.println("t1 released");
-	}
-	break;
+		if (pressed) { // Pad 1 pressed
+			Serial.println("t1 pressed");
+			potCtrl = CHORUS;
+		} else { // Pad 1 released
+			Serial.println("t1 released");
+		}
+		break;
 	case 2:
-	if (pressed) { // Pad 2 pressed
-		Serial.println("t2 pressed");
-		potCtrl = REVERB;
-	} else { // Pad 2 released
-		Serial.println("t2 released");
-	}
-	break;
+		if (pressed) { // Pad 2 pressed
+			Serial.println("t2 pressed");
+			potCtrl = REVERB;
+		} else { // Pad 2 released
+			Serial.println("t2 released");
+		}
+		break;
 	case 3:
-	if (pressed) { // Pad 3 pressed
-		Serial.println("t3 pressed");
-		hasWind = !hasWind;
-	} else { // Pad 3 released
-		Serial.println("t3 released");
-	}
-	break;
+		if (pressed) { // Pad 3 pressed
+			Serial.println("t3 pressed");
+			hasWind = !hasWind;
+		} else { // Pad 3 released
+			Serial.println("t3 released");
+		}
+		break;
 	case 4:
-	if (pressed) { // Pad 4 pressed
-		Serial.println("t4 pressed");
-		playDrums = !playDrums;
-	} else { // Pad 4 released
-		Serial.println("t4 released");
-	}
-	break;
+		if (pressed) { // Pad 4 pressed
+			Serial.println("t4 pressed");
+			playDrums = !playDrums;
+		} else { // Pad 4 released
+			Serial.println("t4 released");
+		}
+		break;
 	case 5:
-	if (pressed) { // Pad 5 pressed
-		Serial.println("t5 pressed");
-	} else { // Pad 5 released
-		Serial.println("t5 released");
-	}
-	break;
+		if (pressed) { // Pad 5 pressed
+			Serial.println("t5 pressed");
+		} else { // Pad 5 released
+			Serial.println("t5 released");
+		}
+		break;
 	case 6:
-	if (pressed) { // Pad 6 pressed
-		Serial.println("t6 pressed");
-	} else { // Pad 6 released
-		Serial.println("t6 released");
-	}
-	break;
+		if (pressed) { // Pad 6 pressed
+			Serial.println("t6 pressed");
+		} else { // Pad 6 released
+			Serial.println("t6 released");
+		}
+		break;
 	case 7:
-	if (pressed) { // Pad 7 pressed
-		Serial.println("t7 pressed");
-		modify = !modify;
-	} else { // Pad 7 released
-		Serial.println("t7 released");
-	}
-	break;
+		if (pressed) { // Pad 7 pressed
+			Serial.println("t7 pressed");
+			modify = !modify;
+		} else { // Pad 7 released
+			Serial.println("t7 released");
+		}
+		break;
 	}
 }
 
@@ -282,69 +282,69 @@ void updateDip(int number, bool up) {
 	}
 	switch (number) {
 	case 0:
-	if (up) { // DIP 0 up
-		Serial.println("d0 up");
+		if (up) { // DIP 0 up
+			Serial.println("d0 up");
 
-	} else { // DIP 0 down
-		Serial.println("d0 down");
-	}
-	break;
+		} else { // DIP 0 down
+			Serial.println("d0 down");
+		}
+		break;
 	case 1:
-	if (up) { // DIP 1 up
-		Serial.println("d1 up");
-		chorus.setEnabled(true);
-		potCtrl = CHORUS;
-	} else { // DIP 1 down
-		Serial.println("d1 down");
-		chorus.setEnabled(false);
-		potCtrl = MELODY_RHYTHM;
-	}
-	break;
+		if (up) { // DIP 1 up
+			Serial.println("d1 up");
+			chorus.setEnabled(true);
+			potCtrl = CHORUS;
+		} else { // DIP 1 down
+			Serial.println("d1 down");
+			chorus.setEnabled(false);
+			potCtrl = MELODY_RHYTHM;
+		}
+		break;
 	case 2:
-	if (up) { // DIP 2 up
-		Serial.println("d2 up");
-		reverb.setEnabled(true);
-		potCtrl = REVERB;
-	} else { // DIP 2 down
-		Serial.println("d2 down");
-		reverb.setEnabled(false);
-		potCtrl = MELODY_RHYTHM;
-	}
-	break;
+		if (up) { // DIP 2 up
+			Serial.println("d2 up");
+			reverb.setEnabled(true);
+			potCtrl = REVERB;
+		} else { // DIP 2 down
+			Serial.println("d2 down");
+			reverb.setEnabled(false);
+			potCtrl = MELODY_RHYTHM;
+		}
+		break;
 	case 3:
-	if (up) { // DIP 3 up
-		Serial.println("d3 up");
-	} else { // DIP 3 down
-		Serial.println("d3 down");
-	}
-	break;
+			if (up) { // DIP 3 up
+				Serial.println("d3 up");
+			} else { // DIP 3 down
+				Serial.println("d3 down");
+			}
+			break;
 	case 4:
-	if (up) { // DIP 4 up
-		Serial.println("d4 up");
-	} else { // DIP 4 down
-		Serial.println("d4 down");
-	}
-	break;
+		if (up) { // DIP 4 up
+			Serial.println("d4 up");
+		} else { // DIP 4 down
+			Serial.println("d4 down");
+		}
+		break;
 	case 5:
-	if (up) { // DIP 5 up
-		Serial.println("d5 up");
-	} else { // DIP 5 down
-		Serial.println("d5 down");
-	}
-	break;
+		if (up) { // DIP 5 up
+			Serial.println("d5 up");
+		} else { // DIP 5 down
+			Serial.println("d5 down");
+		}
+		break;
 	case 6:
-	if (up) { // DIP 6 up
-		Serial.println("d6 up");
-	} else { // DIP 6 down
-		Serial.println("d6 down");
-	}
-	break;
+		if (up) { // DIP 6 up
+			Serial.println("d6 up");
+		} else { // DIP 6 down
+			Serial.println("d6 down");
+		}
+		break;
 	case 7:
-	if (up) { // DIP 7 up
-		Serial.println("d7 up");
-	} else { // DIP 7 down
-		Serial.println("d7 down");
-	}
-	break;
+		if (up) { // DIP 7 up
+			Serial.println("d7 up");
+		} else { // DIP 7 down
+			Serial.println("d7 down");
+		}
+		break;
 	}
 }
