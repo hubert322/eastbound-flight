@@ -3,18 +3,18 @@
 
 class Enableable {
 private:
-  bool isEnabled_ = false;
+	bool isEnabled_ = false;
 
 public:
-  virtual ~Enableable() = default;
+	virtual ~Enableable() = default;
 
-  void setEnabled(bool enabled) {
-    isEnabled_ = enabled;
-  }
+	void setEnabled(bool enabled) {
+		isEnabled_ = enabled;
+	}
 
-  bool isEnabled() {
-    return  isEnabled_;
-  }
+	bool isEnabled() {
+		return  isEnabled_;
+	}
 };
 
 #endif
