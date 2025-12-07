@@ -1,9 +1,9 @@
 /*
-    Basic template for working with a stock MEAP board.
+	Basic template for working with a stock MEAP board.
 */
 
 #define CONTROL_RATE 128 // Hz, powers of 2 are most reliable
-#include <Meap.h> // MEAP library, includes all dependent libraries, including all Mozzi modules
+#include <Meap.h>		 // MEAP library, includes all dependent libraries, including all Mozzi modules
 
 Meap meap; // creates MEAP object to handle inputs and other MEAP library functions
 MIDI_CREATE_INSTANCE(HardwareSerial, Serial1, MIDI); // defines MIDI in/out ports
@@ -29,7 +29,6 @@ Melody<sin8192_int16_NUM_CELLS, AUDIO_RATE, int16_t> melody(sin8192_int16_DATA);
 Melody<sin8192_int16_NUM_CELLS, AUDIO_RATE, int16_t> melody2(sin8192_int16_DATA);
 int *melodyNotes;
 int melodyNumber = 0;
-int melodyPadNumber = -1;
 float swing = 0;
 
 // Effects
@@ -38,6 +37,14 @@ Reverb reverb(0.0, 0.8, 0.3, 0.0);
 
 bool modify = true;
 bool hasWind = false;
+
+// Effect State Tracking
+float storedChorusFreq = 0.0;
+float storedChorusDepth = 0.0;
+float storedReverbDecay = 0.0;
+float storedReverbMix = 0.0;
+int storedWindCutoff = 0;
+int storedWindResonance = 0;
 
 enum PotCtrl { MELODY_RHYTHM, CHORUS, REVERB };
 PotCtrl potCtrl = MELODY_RHYTHM;
@@ -49,8 +56,7 @@ int sixteenthLength = 500;
 State *currState;
 
 // Drums
-// mSample<punk_rock_drums_NUM_CELLS, AUDIO_RATE, int16_t>
-// punkRockDrums(punk_rock_drums_DATA);
+// mSample<punk_rock_drums_NUM_CELLS, AUDIO_RATE, int16_t> punkRockDrums(punk_rock_drums_DATA);
 mSample<neo_soul_drums_NUM_CELLS, AUDIO_RATE, int16_t> neoSoulDrums(neo_soul_drums_DATA);
 bool playDrums = false;
 
@@ -64,7 +70,7 @@ MultiResonantFilter filter;
 void setup() {
 
 	Serial.begin(115200); // begins Serial communication with computer
-	meap.begin();         // sets up MEAP object
+	meap.begin();		  // sets up MEAP object
 	// sets up MIDI: baud rate, serialmode, rx pin, tx pin
 	Serial1.begin(31250, SERIAL_8N1, meap.MEAP_MIDI_IN_PIN, meap.MEAP_MIDI_OUT_PIN);
 	startMozzi(CONTROL_RATE); // starts Mozzi engine with control rate defined above
@@ -81,6 +87,70 @@ void setup() {
 
 void loop() {
 	audioHook(); // handles Mozzi audio generation behind the scenes
+}
+
+void printStatus() {
+	Serial.println("\n--- Status ---");
+
+	// DIP 0: Melody
+	Serial.print("DIP 0 (Melody): ");
+	Serial.print(melody.isEnabled() ? "ON" : "OFF");
+	Serial.print(" | Swing: ");
+	Serial.print(swing);
+	Serial.print(", Length: ");
+	Serial.println(sixteenthLength);
+
+	// DIP 1: Chorus
+	Serial.print("DIP 1 (Chorus): ");
+	Serial.print(chorus.isEnabled() ? "ON" : "OFF");
+	Serial.print(" | Freq: ");
+	Serial.print(storedChorusFreq);
+	Serial.print(", Depth: ");
+	Serial.println(storedChorusDepth);
+
+	// DIP 2: Reverb
+	Serial.print("DIP 2 (Reverb): ");
+	Serial.print(reverb.isEnabled() ? "ON" : "OFF");
+	Serial.print(" | Decay: ");
+	Serial.print(storedReverbDecay);
+	Serial.print(", Mix: ");
+	Serial.println(storedReverbMix);
+
+	// DIP 3: Melody2
+	Serial.print("DIP 3 (Melody2): ");
+	Serial.println(melody2.isEnabled() ? "ON" : "OFF");
+
+	// Other Controls
+	Serial.print("Drums: ");
+	Serial.print(playDrums ? "ON" : "OFF");
+	Serial.print(" | Wind: ");
+	Serial.print(hasWind ? "ON" : "OFF");
+	Serial.print(" (Cutoff: ");
+	Serial.print(storedWindCutoff);
+	Serial.print(", Res: ");
+	Serial.print(storedWindResonance);
+	Serial.println(")");
+
+	Serial.print("Modify Mode: ");
+	Serial.println(modify ? "ON" : "OFF");
+
+	Serial.print("Current PotCtrl: ");
+	switch (potCtrl) {
+	case MELODY_RHYTHM:
+		Serial.println("MELODY_RHYTHM");
+		break;
+	case CHORUS:
+		Serial.println("CHORUS");
+		break;
+	case REVERB:
+		Serial.println("REVERB");
+		break;
+	}
+	Serial.print("Current Pot Values: ");
+	Serial.print(meap.pot_vals[0]);
+	Serial.print(", ");
+	Serial.println(meap.pot_vals[1]);
+	Serial.println("--------------");
 }
 
 /** Called automatically at rate specified by CONTROL_RATE macro, most of your
@@ -109,30 +179,6 @@ void updateControl() {
 	}
 
 	if (melodyMetro.ready()) {
-		// switch (melodyPadNumber) {
-		// case -1:
-		//   melodyMetro.start(sixteenthLength / 4);
-		//   melody.setFreq(0);
-		//   break;
-		// case 0:
-		//   melodyMetro.start(sixteenthLength / 4);
-		//   melodyNotes = outputChords[0].getMidiNotes();
-		//   melody.setFreq(mtof(melodyNotes[melodyNumber] + 12));
-		//   melodyNumber = (melodyNumber + 1) % 4;
-		//   break;
-		// case 1:
-		//   swing = map(meap.pot_vals[0], 0, 4095, 0, 100) / 100.0;
-		//   if (melodyNumber == 0 || melodyNumber == 2) {
-		//     melodyMetro.start(sixteenthLength / 4 * (1 + swing));
-		//   } else if (melodyNumber == 1 || melodyNumber == 3) {
-		//     melodyMetro.start(sixteenthLength / 4 * (1 - swing));
-		//   }
-		//   melodyNotes = outputChords[0].getMidiNotes();
-		//   melody.setFreq(mtof(melodyNotes[melodyNumber] + 12));
-		//   melodyNumber = (melodyNumber + 1) % 4;
-		//   break;
-		// }
-
 		if (potCtrl == MELODY_RHYTHM && modify) {
 			swing = map(meap.pot_vals[0], 0, 4095, 0, 100) / 100.0;
 		}
@@ -151,16 +197,32 @@ void updateControl() {
 		int cutoff = map(meap.pot_vals[0], 0, 4095, 0, 255);
 		int resonance = map(meap.pot_vals[1], 0, 4095, 0, 255);
 		filter.setCutoffFreqAndResonance(cutoff, resonance);
+		storedWindCutoff = cutoff;
+		storedWindResonance = resonance;
 	}
 
 	// Effects
 	if (potCtrl == CHORUS && modify) {
-		chorus.setModFreq(map(meap.pot_vals[0], 0, 4095, 0, 500) / 100.0);
-		chorus.setModDepth(meap.pot_vals[1] / 4095.0);
+		storedChorusFreq = map(meap.pot_vals[0], 0, 4095, 0, 500) / 100.0;
+		storedChorusDepth = meap.pot_vals[1] / 4095.0;
+		chorus.setModFreq(storedChorusFreq);
+		chorus.setModDepth(storedChorusDepth);
 	}
 	if (potCtrl == REVERB && modify) {
-		reverb.setDecay(meap.pot_vals[0] / 4095.0);
-		reverb.setMix(meap.pot_vals[1] / 4095.0);
+		storedReverbDecay = meap.pot_vals[0] / 4095.0;
+		storedReverbMix = meap.pot_vals[1] / 4095.0;
+		reverb.setDecay(storedReverbDecay);
+		reverb.setMix(storedReverbMix);
+	}
+
+	static int lastPot0 = -1;
+	static int lastPot1 = -1;
+	int potEpsilon = 20;
+
+	if (abs(meap.pot_vals[0] - lastPot0) > potEpsilon || abs(meap.pot_vals[1] - lastPot1) > potEpsilon) {
+		lastPot0 = meap.pot_vals[0];
+		lastPot1 = meap.pot_vals[1];
+		printStatus();
 	}
 }
 
@@ -204,9 +266,7 @@ AudioOutput_t updateAudio() {
  */
 void updateTouch(int number, bool pressed) {
 	if (pressed) { // Any pad pressed
-		melodyPadNumber = number;
 	} else { // Any pad released
-		melodyPadNumber = -1;
 	}
 	switch (number) {
 	case 0:
@@ -275,6 +335,8 @@ void updateTouch(int number, bool pressed) {
 		}
 		break;
 	}
+
+	printStatus();
 }
 
 /**
@@ -354,4 +416,5 @@ void updateDip(int number, bool up) {
 		}
 		break;
 	}
+	printStatus();
 }
