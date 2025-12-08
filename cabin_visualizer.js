@@ -835,7 +835,8 @@ function updateFlightStatus(status) {
 const calibrationDefaults = {
 	window: { x: 0, y: 0, w: 800, h: 500, skewX: 0, skewY: 0, perspective: 800 },
 	screen: { x: 0, y: 0, w: 180, h: 140, skewX: 0, skewY: 0, rotation: 0, rotateX: 0, rotateY: 0 },
-	cabin: { x: 0, y: 0, w: 100, h: 100, objX: 50, objY: 50 }
+	cabin: { x: 0, y: 0, w: 100, h: 100, objX: 50, objY: 50 },
+	text: { logo: 10, status: 8, labels: 9, values: 9, icons: 12 }
 };
 
 let calibration = JSON.parse(JSON.stringify(calibrationDefaults));
@@ -887,6 +888,19 @@ function initCalibration() {
 				const val = parseInt(slider.value);
 				document.getElementById(valId).textContent = val;
 				calibration.cabin[prop] = val;
+				applyCalibration();
+			});
+		}
+	});
+
+	// Text size sliders
+	['logo', 'status', 'labels', 'values', 'icons'].forEach(prop => {
+		const slider = document.getElementById(`text-${prop}`);
+		if (slider) {
+			slider.addEventListener('input', () => {
+				const val = parseInt(slider.value);
+				document.getElementById(`text-${prop}-val`).textContent = val;
+				calibration.text[prop] = val;
 				applyCalibration();
 			});
 		}
@@ -945,6 +959,17 @@ function applyCalibration() {
 		elements.cabinImage.style.height = `${c.h}%`;
 		elements.cabinImage.style.backgroundPosition = `${c.objX}% ${c.objY}%`;
 	}
+
+	// Apply text sizes
+	const t = calibration.text;
+	if (t) {
+		const root = document.documentElement;
+		root.style.setProperty('--text-logo-size', `${t.logo}px`);
+		root.style.setProperty('--text-status-size', `${t.status}px`);
+		root.style.setProperty('--text-labels-size', `${t.labels}px`);
+		root.style.setProperty('--text-values-size', `${t.values}px`);
+		root.style.setProperty('--text-icons-size', `${t.icons}px`);
+	}
 }
 
 function loadCalibration() {
@@ -970,7 +995,8 @@ function loadCalibration() {
 						objX: 50,
 						objY: 50
 					})
-				}
+				},
+				text: { ...calibrationDefaults.text, ...(calData.text || {}) }
 			};
 
 			// Update sliders to match
@@ -1012,33 +1038,66 @@ function loadCalibration() {
 				});
 			}
 
+			// Load text size settings
+			if (calibration.text) {
+				['logo', 'status', 'labels', 'values', 'icons'].forEach(prop => {
+					const slider = document.getElementById(`text-${prop}`);
+					if (slider && calibration.text[prop] !== undefined) {
+						slider.value = calibration.text[prop];
+						document.getElementById(`text-${prop}-val`).textContent = calibration.text[prop];
+					}
+				});
+			}
+
 			applyCalibration();
 
-			// Load sky palette selections
+			// Load sky palette selections - always update dropdowns even if no saved palettes
+			console.log('Loading sky palettes from saved data:', loaded.skyPalettes);
 			if (loaded.skyPalettes) {
-				selectedPalettes = { ...selectedPalettes, ...loaded.skyPalettes };
-				updateSkyDropdowns();
-				updateSkySwatches();
+				selectedPalettes = {
+					morning: loaded.skyPalettes.morning || 'default',
+					sunset: loaded.skyPalettes.sunset || 'default',
+					night: loaded.skyPalettes.night || 'default'
+				};
+				console.log('Sky palettes loaded:', selectedPalettes);
+			} else {
+				console.log('No sky palettes found in saved data, using defaults');
 			}
+			updateSkyDropdowns();
+			updateSkySwatches();
 		} catch (e) {
 			console.warn('Failed to load calibration:', e);
 		}
 	}
 }
 
-function saveCalibration() {
+function saveCalibration(showAlert = true) {
 	const saveData = {
 		calibration: calibration,
 		skyPalettes: selectedPalettes
 	};
+	console.log('Saving calibration:', saveData);
+	console.log('Sky palettes being saved:', selectedPalettes);
 	localStorage.setItem('cabinVisualizerCalibration', JSON.stringify(saveData));
-	alert('Calibration saved!');
+	if (showAlert) {
+		alert('Calibration saved!');
+	}
 }
 
 function resetCalibration() {
 	calibration = JSON.parse(JSON.stringify(calibrationDefaults));
 	selectedPalettes = { morning: 'default', sunset: 'default', night: 'default' };
 	localStorage.removeItem('cabinVisualizerCalibration');
+
+	// Reset text size sliders
+	['logo', 'status', 'labels', 'values', 'icons'].forEach(prop => {
+		const slider = document.getElementById(`text-${prop}`);
+		if (slider) {
+			slider.value = calibrationDefaults.text[prop];
+			document.getElementById(`text-${prop}-val`).textContent = calibrationDefaults.text[prop];
+		}
+	});
+
 	updateSkyDropdowns();
 	updateSkySwatches();
 	applyCalibration();
@@ -1126,6 +1185,120 @@ function initControls() {
 
 	// Connect serial
 	document.getElementById('connect-serial').addEventListener('click', connectSerial);
+
+	// Download config
+	document.getElementById('download-config').addEventListener('click', downloadConfig);
+
+	// Upload config - trigger file input
+	document.getElementById('upload-config').addEventListener('click', () => {
+		document.getElementById('config-file-input').click();
+	});
+
+	// File input handler for upload
+	document.getElementById('config-file-input').addEventListener('change', uploadConfig);
+}
+
+// ============================================================================
+// Configuration Export/Import
+// ============================================================================
+
+function downloadConfig() {
+	const saveData = {
+		calibration: calibration,
+		skyPalettes: selectedPalettes,
+		exportedAt: new Date().toISOString()
+	};
+
+	const blob = new Blob([JSON.stringify(saveData, null, 2)], { type: 'application/json' });
+	const url = URL.createObjectURL(blob);
+
+	const link = document.createElement('a');
+	link.href = url;
+	const now = new Date();
+	const dateStr = now.toISOString().slice(0, 10);
+	const timeStr = now.toTimeString().slice(0, 8).replace(/:/g, '-');
+	link.download = `cabin-visualizer-config-${dateStr}_${timeStr}.json`;
+	document.body.appendChild(link);
+	link.click();
+	document.body.removeChild(link);
+	URL.revokeObjectURL(url);
+}
+
+function uploadConfig(event) {
+	const file = event.target.files[0];
+	if (!file) return;
+
+	const reader = new FileReader();
+	reader.onload = (e) => {
+		try {
+			const loaded = JSON.parse(e.target.result);
+
+			// Load calibration
+			const calData = loaded.calibration || loaded;
+			calibration = {
+				window: { ...calibrationDefaults.window, ...calData.window },
+				screen: { ...calibrationDefaults.screen, ...calData.screen },
+				cabin: { ...calibrationDefaults.cabin, ...(calData.cabin || {}) }
+			};
+
+			// Update calibration sliders
+			Object.keys(calibration.window).forEach(prop => {
+				const sliderId = `window-${prop.toLowerCase()}`;
+				const slider = document.getElementById(sliderId);
+				if (slider) {
+					slider.value = calibration.window[prop];
+					document.getElementById(`${sliderId}-val`).textContent = calibration.window[prop];
+				}
+			});
+
+			Object.keys(calibration.screen).forEach(prop => {
+				const sliderId = `screen-${prop.toLowerCase()}`;
+				const slider = document.getElementById(sliderId);
+				if (slider) {
+					slider.value = calibration.screen[prop];
+					document.getElementById(`${sliderId}-val`).textContent = calibration.screen[prop];
+				}
+			});
+
+			const cabinSliderMap = {
+				x: 'cabin-x', y: 'cabin-y', w: 'cabin-width', h: 'cabin-height',
+				objX: 'cabin-objx', objY: 'cabin-objy'
+			};
+			Object.keys(cabinSliderMap).forEach(prop => {
+				const sliderId = cabinSliderMap[prop];
+				const slider = document.getElementById(sliderId);
+				if (slider && calibration.cabin[prop] !== undefined) {
+					slider.value = calibration.cabin[prop];
+					document.getElementById(`${sliderId}-val`).textContent = calibration.cabin[prop];
+				}
+			});
+
+			applyCalibration();
+
+			// Load sky palettes
+			if (loaded.skyPalettes) {
+				selectedPalettes = {
+					morning: loaded.skyPalettes.morning || 'default',
+					sunset: loaded.skyPalettes.sunset || 'default',
+					night: loaded.skyPalettes.night || 'default'
+				};
+				updateSkyDropdowns();
+				updateSkySwatches();
+			}
+
+			// Also save to localStorage (silently)
+			saveCalibration(false);
+
+			alert('Configuration loaded successfully!');
+		} catch (err) {
+			console.error('Failed to load config:', err);
+			alert('Failed to load configuration: ' + err.message);
+		}
+	};
+	reader.readAsText(file);
+
+	// Reset the file input so the same file can be re-selected
+	event.target.value = '';
 }
 
 // ============================================================================

@@ -23,6 +23,7 @@ MIDI_CREATE_INSTANCE(HardwareSerial, Serial1, MIDI); // defines MIDI in/out port
 
 EventDelay chordMetro;
 EventDelay melodyMetro;
+EventDelay clockMetro;
 
 Chord currentChord;
 
@@ -64,7 +65,7 @@ int drumVolume = 4095;
 
 // Announcements
 // #include "mandarin_land.h"
-#include "landing_sample.h"	
+#include "landing_sample.h"
 mSample<landing_sample_NUM_CELLS, AUDIO_RATE, int16_t> landingSample(landing_sample_DATA);
 bool playAnnouncement = false;
 
@@ -385,6 +386,12 @@ void updateControl() {
 		lastPot1 = meap.pot_vals[1];
 		printStatus();
 	}
+
+	// For visualizer
+	if (clockMetro.ready()) {
+		clockMetro.start(1000);
+		printStatus();
+	}
 }
 
 /** Called automatically at rate specified by AUDIO_RATE macro, for calculating
@@ -565,6 +572,7 @@ void updateDip(int number, bool up) {
 		if (up) { // DIP 5 up
 			Serial.println("d5 up");
 			playAnnouncement = true;
+			landingSample.start();
 		} else { // DIP 5 down
 			Serial.println("d5 down");
 			playAnnouncement = false;

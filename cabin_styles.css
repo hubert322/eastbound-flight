@@ -24,6 +24,13 @@
 	--btn-bg: rgba(50, 70, 120, 0.8);
 	--btn-hover: rgba(80, 110, 180, 0.9);
 	--screen-bg: #0a0f18;
+
+	/* Text Sizes (adjustable via calibration) */
+	--text-logo-size: 10px;
+	--text-status-size: 8px;
+	--text-labels-size: 9px;
+	--text-values-size: 9px;
+	--text-icons-size: 12px;
 }
 
 * {
@@ -377,14 +384,14 @@ body {
 }
 
 .airline-logo {
-	font-size: 10px;
+	font-size: var(--text-logo-size);
 	font-weight: 600;
 	color: var(--phase1-accent);
 	letter-spacing: 1px;
 }
 
 #flight-status {
-	font-size: 8px;
+	font-size: var(--text-status-size);
 	color: #4ade80;
 	font-weight: 600;
 	padding: 2px 6px;
@@ -417,16 +424,18 @@ body {
 .info-row {
 	display: flex;
 	justify-content: space-between;
-	font-size: 9px;
+	font-size: var(--text-labels-size);
 }
 
 .info-label {
 	color: var(--text-muted);
+	font-size: var(--text-labels-size);
 }
 
 .info-value {
 	color: var(--text-primary);
 	font-weight: 500;
+	font-size: var(--text-values-size);
 	text-align: right;
 	max-width: 100px;
 	overflow: hidden;
@@ -444,7 +453,7 @@ body {
 
 #drums-indicator,
 #sample-indicator {
-	font-size: 12px;
+	font-size: var(--text-icons-size);
 	opacity: 0.3;
 	transition: opacity 0.3s ease;
 }
