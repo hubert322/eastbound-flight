@@ -708,6 +708,11 @@ function handleVisualData(data) {
 	updateScreenDisplay();
 	setPhase(currentState.phase);
 	applyStateToVibe(currentState.stateName);
+
+	// Update Technical Overlay
+	if (data.details) {
+		updateTechnicalDisplay(data.details);
+	}
 }
 
 // ============================================================================
@@ -750,6 +755,10 @@ function triggerTakeoff() {
 }
 
 function triggerLanding() {
+	if (displayState === 'ARRIVED') {
+		return;
+	}
+
 	updateFlightStatus('LANDING');
 	displayState = 'LANDING';
 
@@ -836,7 +845,8 @@ const calibrationDefaults = {
 	window: { x: 0, y: 0, w: 800, h: 500, skewX: 0, skewY: 0, perspective: 800 },
 	screen: { x: 0, y: 0, w: 180, h: 140, skewX: 0, skewY: 0, rotation: 0, rotateX: 0, rotateY: 0 },
 	cabin: { x: 0, y: 0, w: 100, h: 100, objX: 50, objY: 50 },
-	text: { logo: 10, status: 8, labels: 9, values: 9, icons: 12 }
+	text: { logo: 10, status: 8, labels: 9, values: 9, icons: 12 },
+	tech: { x: 20, y: 20, scale: 100 }
 };
 
 let calibration = JSON.parse(JSON.stringify(calibrationDefaults));
@@ -852,6 +862,19 @@ function initCalibration() {
 
 				const mappedProp = prop === 'skewx' ? 'skewX' : (prop === 'skewy' ? 'skewY' : prop);
 				calibration.window[mappedProp] = val;
+				applyCalibration();
+			});
+		}
+	});
+
+	// Tech Overlay sliders
+	['x', 'y', 'scale'].forEach(prop => {
+		const slider = document.getElementById(`tech-${prop}`);
+		if (slider) {
+			slider.addEventListener('input', () => {
+				const val = parseInt(slider.value);
+				document.getElementById(`tech-${prop}-val`).textContent = val;
+				calibration.tech[prop] = val;
 				applyCalibration();
 			});
 		}
@@ -930,7 +953,9 @@ function applyCalibration() {
 		if (canvasW !== w.w || canvasH !== w.h) {
 			canvasW = w.w;
 			canvasH = w.h;
-			resizeCanvas(w.w, w.h);
+			if (typeof resizeCanvas === 'function') {
+				resizeCanvas(w.w, w.h);
+			}
 		}
 	}
 
@@ -970,6 +995,16 @@ function applyCalibration() {
 		root.style.setProperty('--text-values-size', `${t.values}px`);
 		root.style.setProperty('--text-icons-size', `${t.icons}px`);
 	}
+
+	// Apply technical overlay
+	const tech = calibration.tech;
+	const overlay = document.getElementById('technical-overlay');
+	if (overlay && tech) {
+		overlay.style.top = `${tech.y}px`;
+		overlay.style.left = `${tech.x}px`;
+		overlay.style.transform = `scale(${tech.scale / 100})`;
+		overlay.style.transformOrigin = 'top left';
+	}
 }
 
 function loadCalibration() {
@@ -996,7 +1031,8 @@ function loadCalibration() {
 						objY: 50
 					})
 				},
-				text: { ...calibrationDefaults.text, ...(calData.text || {}) }
+				text: { ...calibrationDefaults.text, ...(calData.text || {}) },
+				tech: { ...calibrationDefaults.tech, ...(calData.tech || {}) }
 			};
 
 			// Update sliders to match
@@ -1045,6 +1081,17 @@ function loadCalibration() {
 					if (slider && calibration.text[prop] !== undefined) {
 						slider.value = calibration.text[prop];
 						document.getElementById(`text-${prop}-val`).textContent = calibration.text[prop];
+					}
+				});
+			}
+
+			// Load tech overlay settings
+			if (calibration.tech) {
+				['x', 'y', 'scale'].forEach(prop => {
+					const slider = document.getElementById(`tech-${prop}`);
+					if (slider && calibration.tech[prop] !== undefined) {
+						slider.value = calibration.tech[prop];
+						document.getElementById(`tech-${prop}-val`).textContent = calibration.tech[prop];
 					}
 				});
 			}
@@ -1196,6 +1243,16 @@ function initControls() {
 
 	// File input handler for upload
 	document.getElementById('config-file-input').addEventListener('change', uploadConfig);
+
+	// Toggle Technical Overlay (Shift + D)
+	document.addEventListener('keydown', (e) => {
+		if (e.shiftKey && (e.key === 'D' || e.key === 'd')) {
+			const overlay = document.getElementById('technical-overlay');
+			if (overlay) {
+				overlay.style.display = overlay.style.display === 'none' ? 'block' : 'none';
+			}
+		}
+	});
 }
 
 // ============================================================================
@@ -1392,4 +1449,73 @@ function simulatePerformance() {
 			document.getElementById('toggle-performance').textContent = '▶️ Start Performance';
 		}
 	}, 1000);
+}
+
+// ============================================================================
+// Technical Overlay Updates
+// ============================================================================
+
+function updateTechnicalDisplay(d) {
+	const set = (id, val) => {
+		const el = document.getElementById(id);
+		if (el) el.textContent = val;
+	};
+
+	if (!d) return;
+
+	// Melody
+	if (d.mel) {
+		set('tech-mel-on', d.mel.on ? 'ON' : 'OFF');
+		set('tech-mel-sw', d.mel.sw !== undefined ? d.mel.sw.toFixed(2) : '-');
+		set('tech-mel-len', d.mel.len);
+	}
+
+	// Chorus
+	if (d.cho) {
+		set('tech-cho-on', d.cho.on ? 'ON' : 'OFF');
+		set('tech-cho-fr', d.cho.fr !== undefined ? d.cho.fr.toFixed(2) : '-');
+		set('tech-cho-dp', d.cho.dp !== undefined ? d.cho.dp.toFixed(2) : '-');
+	}
+
+	// Reverb
+	if (d.rev) {
+		set('tech-rev-on', d.rev.on ? 'ON' : 'OFF');
+		set('tech-rev-dec', d.rev.dec !== undefined ? d.rev.dec.toFixed(2) : '-');
+		set('tech-rev-mix', d.rev.mix !== undefined ? d.rev.mix.toFixed(2) : '-');
+	}
+
+	// Mel 2
+	if (d.mel2) {
+		set('tech-mel2-on', d.mel2.on ? 'ON' : 'OFF');
+		set('tech-mel2-mph', d.mel2.mph);
+		set('tech-mel2-vol', d.mel2.vol);
+	}
+
+	// Drums
+	if (d.drm) {
+		set('tech-drm-on', d.drm.on ? 'ON' : 'OFF');
+		set('tech-drm-spd', d.drm.spd !== undefined ? d.drm.spd.toFixed(2) : '-');
+		set('tech-drm-vol', d.drm.vol);
+	}
+
+	// Wind
+	if (d.wnd) {
+		set('tech-wnd-on', d.wnd.on ? 'ON' : 'OFF');
+		set('tech-wnd-cut', d.wnd.cut);
+		set('tech-wnd-res', d.wnd.res);
+		set('tech-wnd-vol', d.wnd.vol);
+	}
+
+	// System
+	set('tech-mod', d.mod ? 'ON' : 'OFF');
+	set('tech-pot', d.pot);
+	if (d.vals && d.vals.length >= 2) {
+		set('tech-vals', `[${d.vals[0]}, ${d.vals[1]}]`);
+	}
+
+	// State (from Global)
+	set('tech-phase', currentState.phase);
+	if (elements.infoTime) {
+		set('tech-time', elements.infoTime.textContent);
+	}
 }

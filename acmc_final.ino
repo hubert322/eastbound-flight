@@ -78,6 +78,12 @@ int currentPhase = 1;
 WIND
 */
 Wind wind;
+int windVolTarget = 4095;
+int windCutTarget = 255;
+int windResTarget = 255;
+float windVolCurrent = 4095.0;
+float windCutCurrent = 255.0;
+float windResCurrent = 255.0;
 
 // Helper for Visualizer Data
 String getVisualDescription(int phase, String chordName) {
@@ -101,6 +107,38 @@ String getVibeDescription(int phase, String chordName) {
 	if (phase == 3)
 		return "Serious, Night";
 	return "Unknown";
+}
+
+void updateWindState() {
+	if (potCtrl == WIND_CONTROL)
+		return;
+
+	String chordName = currentChord.getName();
+	int targetVol = 1500;
+	int targetCutoff = 100;
+	int targetRes = 80;
+
+	if (chordName.indexOf("Maj7") != -1) {
+		targetVol = 1000;
+		targetCutoff = 60;
+		targetRes = 50;
+	} else if (chordName.indexOf("Dom7") != -1) {
+		targetVol = 3500;
+		targetCutoff = 220;
+		targetRes = 180;
+	} else if (chordName.indexOf("Min7") != -1) {
+		targetVol = 2000;
+		targetCutoff = 120;
+		targetRes = 100;
+	} else if (chordName.indexOf("HalfDim") != -1) {
+		targetVol = 3000;
+		targetCutoff = 200;
+		targetRes = 200;
+	}
+
+	windVolTarget = targetVol;
+	windCutTarget = targetCutoff;
+	windResTarget = targetRes;
 }
 
 void setup() {
@@ -242,6 +280,8 @@ void printStatus() {
 	Serial.println(meap.pot_vals[1]);
 	Serial.println("--------------");
 
+	Serial.println("}");
+
 	// Visualizer Data Block
 	unsigned long elapsed = 0;
 	if (isPerformanceRunning) {
@@ -249,6 +289,7 @@ void printStatus() {
 	}
 
 	Serial.print("VISUAL:{");
+	// Basic Info
 	Serial.print("\"time\":");
 	Serial.print(elapsed);
 	Serial.print(",\"phase\":");
@@ -265,10 +306,115 @@ void printStatus() {
 	Serial.print(",\"weather\":\"");
 	Serial.print(getVisualDescription(currentPhase, currentChord.getName()));
 	Serial.print("\"");
-	Serial.print(",\"drums\":");
-	Serial.print(playDrums ? "true" : "false");
-	Serial.print(",\"sample\":");
-	Serial.print(playAnnouncement ? "true" : "false");
+
+	// Details Object
+	Serial.print(",\"details\":{");
+
+	// Melody
+	Serial.print("\"mel\":{");
+	Serial.print("\"on\":");
+	Serial.print(melody.isEnabled() ? 1 : 0);
+	Serial.print(",\"sw\":");
+	Serial.print(swing);
+	Serial.print(",\"len\":");
+	Serial.print(sixteenthLength);
+	Serial.print("},");
+
+	// Chorus
+	Serial.print("\"cho\":{");
+	Serial.print("\"on\":");
+	Serial.print(chorus.isEnabled() ? 1 : 0);
+	Serial.print(",\"fr\":");
+	Serial.print(storedChorusFreq);
+	Serial.print(",\"dp\":");
+	Serial.print(storedChorusDepth);
+	Serial.print("},");
+
+	// Reverb
+	Serial.print("\"rev\":{");
+	Serial.print("\"on\":");
+	Serial.print(reverb.isEnabled() ? 1 : 0);
+	Serial.print(",\"dec\":");
+	Serial.print(storedReverbDecay);
+	Serial.print(",\"mix\":");
+	Serial.print(storedReverbMix);
+	Serial.print("},");
+
+	// Melody 2
+	Serial.print("\"mel2\":{");
+	Serial.print("\"on\":");
+	Serial.print(melody2.isEnabled() ? 1 : 0);
+	Serial.print(",\"mph\":\"");
+	Serial.print(melody2.getMorphStatus());
+	Serial.print("\"");
+	Serial.print(",\"vol\":");
+	Serial.print(melody2.getVolume());
+	Serial.print("},");
+
+	// Drums
+	Serial.print("\"drm\":{");
+	Serial.print("\"on\":");
+	Serial.print(playDrums ? 1 : 0);
+	Serial.print(",\"spd\":");
+	Serial.print(drumSpeed);
+	Serial.print(",\"vol\":");
+	Serial.print(drumVolume);
+	Serial.print("},");
+
+	// Sample
+	Serial.print("\"smp\":{");
+	Serial.print("\"on\":");
+	Serial.print(playAnnouncement ? 1 : 0);
+	Serial.print(",\"spd\":");
+	Serial.print(drumSpeed); // Note: using drumSpeed as per original printStatus
+	Serial.print(",\"vol\":");
+	Serial.print(drumVolume);
+	Serial.print("},");
+
+	// Wind
+	Serial.print("\"wnd\":{");
+	Serial.print("\"on\":");
+	Serial.print(wind.isEnabled() ? 1 : 0);
+	Serial.print(",\"cut\":");
+	Serial.print(wind.getCutoff());
+	Serial.print(",\"res\":");
+	Serial.print(wind.getResonance());
+	Serial.print(",\"vol\":");
+	Serial.print(wind.getVolume());
+	Serial.print("},");
+
+	// Controls
+	Serial.print("\"mod\":");
+	Serial.print(modify ? 1 : 0);
+	Serial.print(",\"pot\":\"");
+	switch (potCtrl) {
+	case MELODY_RHYTHM:
+		Serial.print("MELODY_RHYTHM");
+		break;
+	case CHORUS:
+		Serial.print("CHORUS");
+		break;
+	case REVERB:
+		Serial.print("REVERB");
+		break;
+	case MELODY_2_SOUND:
+		Serial.print("MELODY_2_SOUND");
+		break;
+	case DRUM_CONTROL:
+		Serial.print("DRUM_CONTROL");
+		break;
+	case WIND_CONTROL:
+		Serial.print("WIND_CONTROL");
+		break;
+	}
+	Serial.print("\"");
+	Serial.print(",\"vals\":[");
+	Serial.print(meap.pot_vals[0]);
+	Serial.print(",");
+	Serial.print(meap.pot_vals[1]);
+	Serial.print("]");
+
+	Serial.print("}"); // End details
 	Serial.println("}");
 }
 
@@ -292,6 +438,7 @@ void updateControl() {
 		currState = currState->nextState();
 		currentChord = currState->getChord();
 		chordVoice.setChord(currentChord);
+		updateWindState();
 
 		if (currState == &authenticCadence || currState == &halfCadence || currState == &deceptiveCadence) {
 			chordMetro.start(sixteenthLength * 2);
@@ -322,14 +469,13 @@ void updateControl() {
 	// Wind
 	if (potCtrl == WIND_CONTROL) {
 		if (modify) {
-			int cutoff = map(meap.pot_vals[0], 0, 4095, 0, 255);
-			int resonance = map(meap.pot_vals[1], 0, 4095, 0, 255);
-			wind.setCutOffAndResonance(cutoff, resonance);
+			windCutTarget = map(meap.pot_vals[0], 0, 4095, 0, 255);
+			windResTarget = map(meap.pot_vals[1], 0, 4095, 0, 255);
 		}
 
-		wind.setVolume(meap.volume_val);
-		if (abs(wind.getVolume() - lastVolume) > potEpsilon) {
-			lastVolume = meap.volume_val;
+		windVolTarget = meap.volume_val;
+		if (abs(windVolTarget - lastVolume) > potEpsilon) {
+			lastVolume = windVolTarget;
 			printStatus();
 		}
 	} else if (potCtrl == DRUM_CONTROL) {
@@ -386,6 +532,15 @@ void updateControl() {
 		lastPot1 = meap.pot_vals[1];
 		printStatus();
 	}
+
+	// Apply Wind Smoothing
+	float windAlpha = 0.02; // Adjust for "knob turn" speed
+	windVolCurrent += (windVolTarget - windVolCurrent) * windAlpha;
+	windCutCurrent += (windCutTarget - windCutCurrent) * windAlpha;
+	windResCurrent += (windResTarget - windResCurrent) * windAlpha;
+
+	wind.setVolume((int)windVolCurrent);
+	wind.setCutOffAndResonance((int)windCutCurrent, (int)windResCurrent);
 
 	// For visualizer
 	if (clockMetro.ready()) {
