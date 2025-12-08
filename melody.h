@@ -50,6 +50,15 @@ class Melody : public mOscil<NUM_CELLS, UPDATE_RATE, T>, public Enableable {
 
 	int getMix() { return mixVal; }
 
+	// Volume control (0-4095)
+	int volume = 4095;
+
+	void setVolume(int vol) {
+		volume = constrain(vol, 0, 4095);
+	}
+
+	int getVolume() { return volume; }
+
 	// Linear morph through the first 4 tables based on 0-4095 input
 	void setMorph(int val) {
 		morphVal = val;
@@ -102,13 +111,16 @@ class Melody : public mOscil<NUM_CELLS, UPDATE_RATE, T>, public Enableable {
 	T next() {
 		if (Enableable::isEnabled()) { // Explicitly qualify isEnabled
 			T out1 = mOscil<NUM_CELLS, UPDATE_RATE, T>::next();
+			int32_t mixedOutput;
 			if (wave2Idx != -1) {
 				T out2 = osc2.next();
 				// Mix logic: (out1 * (4095 - mix)) + (out2 * mix) >> 12
-				// Using int32_t for intermediate calculation to avoid overflow before shift
-				return (T)(((int32_t)out1 * (4095 - mixVal) + (int32_t)out2 * mixVal) >> 12);
+				mixedOutput = ((int32_t)out1 * (4095 - mixVal) + (int32_t)out2 * mixVal) >> 12;
+			} else {
+				mixedOutput = out1;
 			}
-			return out1;
+			// Apply volume scaling
+			return (T)((mixedOutput * volume) >> 12);
 		}
 		return 0;
 	}

@@ -131,6 +131,8 @@ void printStatus() {
 	Serial.print(melody2.getMorphStatus());
 	Serial.print(" (");
 	Serial.print(melody2.getMorph());
+	Serial.print(", Vol: ");
+	Serial.print(melody2.getVolume());
 	Serial.println(")");
 
 	// Other Controls
@@ -233,8 +235,9 @@ void updateControl() {
 		reverb.setMix(storedReverbMix);
 	}
 
-	if (potCtrl == MELODY_2_SOUND) {
+	if (potCtrl == MELODY_2_SOUND && modify) {
 		melody2.setMorph(meap.pot_vals[0]);
+		melody2.setVolume(meap.pot_vals[1]);
 	}
 
 	static int lastPot0 = -1;
@@ -257,7 +260,7 @@ AudioOutput_t updateAudio() {
 	melody_out = chorus.next(melody_out);
 	melody_out = reverb.next(melody_out);
 
-	melody_out += melody2.next() << 1;
+	melody_out += melody2.next() << 2;
 
 	int64_t out_sample = chordVoice.next() + melody_out;
 	if (playDrums) {
@@ -273,7 +276,7 @@ AudioOutput_t updateAudio() {
 		out_sample += white_noise_out_sample << 4;
 	}
 
-	return StereoOutput::fromNBit(20, (out_sample * meap.volume_val) >> 12, (out_sample * meap.volume_val) >> 12);
+	return StereoOutput::fromNBit(22, (out_sample * meap.volume_val) >> 12, (out_sample * meap.volume_val) >> 12);
 }
 
 /**
