@@ -1,0 +1,831 @@
+/* Cabin Visualizer Styles */
+:root {
+	/* Phase Color Palettes */
+	--phase1-sky-top: #0a1628;
+	--phase1-sky-bottom: #2d5a87;
+	--phase1-clouds: rgba(255, 255, 255, 0.9);
+	--phase1-accent: #4da6ff;
+
+	--phase2-sky-top: #1a0a2d;
+	--phase2-sky-bottom: #e86b23;
+	--phase2-clouds: rgba(255, 180, 130, 0.8);
+	--phase2-accent: #ff9966;
+
+	--phase3-sky-top: #000510;
+	--phase3-sky-bottom: #0a1020;
+	--phase3-clouds: rgba(50, 50, 70, 0.7);
+	--phase3-accent: #6699ff;
+
+	/* UI Colors */
+	--panel-bg: rgba(15, 15, 25, 0.95);
+	--panel-border: rgba(100, 150, 255, 0.3);
+	--text-primary: #e0e8ff;
+	--text-muted: #8090a8;
+	--btn-bg: rgba(50, 70, 120, 0.8);
+	--btn-hover: rgba(80, 110, 180, 0.9);
+	--screen-bg: #0a0f18;
+}
+
+* {
+	margin: 0;
+	padding: 0;
+	box-sizing: border-box;
+}
+
+body {
+	font-family: 'Outfit', sans-serif;
+	background: #000;
+	overflow: hidden;
+	width: 100vw;
+	height: 100vh;
+}
+
+/* Main Container */
+#visualizer-container {
+	position: relative;
+	width: 100%;
+	height: 100%;
+	overflow: hidden;
+}
+
+/* p5.js Canvas Container */
+#p5-container {
+	position: absolute;
+	width: 800px;
+	height: 500px;
+	top: 50%;
+	left: 35%;
+	transform: translate(-50%, -55%);
+	overflow: hidden;
+	border-radius: 45% 45% 50% 50%;
+	z-index: 1;
+}
+
+#p5-container canvas {
+	display: block;
+}
+
+/* Sky Layer - Positioned to be visible through window */
+#sky-layer {
+	position: absolute;
+	width: 600px;
+	height: 500px;
+	top: 50%;
+	left: 35%;
+	transform: translate(-50%, -55%);
+	overflow: hidden;
+	border-radius: 45% 45% 50% 50%;
+	z-index: 1;
+}
+
+#sky-gradient {
+	position: absolute;
+	width: 100%;
+	height: 100%;
+	background: linear-gradient(to bottom, var(--phase1-sky-top), var(--phase1-sky-bottom));
+	transition: background 2s ease;
+}
+
+#sky-gradient.phase-1 {
+	background: linear-gradient(to bottom, #0a1628, #2d5a87, #87ceeb);
+}
+
+#sky-gradient.phase-2 {
+	background: linear-gradient(to bottom, #1a0a2d, #8b3a8b, #e86b23, #ffd93d);
+}
+
+#sky-gradient.phase-3 {
+	background: linear-gradient(to bottom, #000510, #0a1020, #0a1628);
+}
+
+/* Ground Layer - for takeoff/landing */
+#ground-layer {
+	position: absolute;
+	bottom: -100%;
+	left: 0;
+	width: 100%;
+	height: 60%;
+	background: linear-gradient(to bottom, #2a3540, #1a2530);
+	transition: bottom 3s ease;
+	z-index: 2;
+}
+
+#ground-layer.visible {
+	bottom: 0;
+}
+
+/* City layer for takeoff/landing */
+#city-layer {
+	position: absolute;
+	bottom: -50%;
+	left: 0;
+	width: 100%;
+	height: 40%;
+	background:
+		repeating-linear-gradient(90deg,
+			transparent,
+			transparent 20px,
+			rgba(50, 60, 80, 1) 20px,
+			rgba(50, 60, 80, 1) 22px),
+		linear-gradient(to bottom, transparent 30%, rgba(30, 40, 50, 1) 100%);
+	z-index: 3;
+	transition: bottom 4s ease;
+}
+
+#city-layer.visible {
+	bottom: 0;
+}
+
+#city-layer::before {
+	content: '';
+	position: absolute;
+	width: 100%;
+	height: 100%;
+	background:
+		linear-gradient(0deg, rgba(255, 200, 100, 0.1) 0%, transparent 50%);
+}
+
+/* Clouds Container */
+#clouds-container {
+	position: absolute;
+	width: 100%;
+	height: 100%;
+	z-index: 5;
+	pointer-events: none;
+}
+
+.cloud {
+	position: absolute;
+	background: radial-gradient(ellipse at center,
+			rgba(255, 255, 255, 0.9) 0%,
+			rgba(255, 255, 255, 0.5) 40%,
+			transparent 70%);
+	border-radius: 50%;
+	filter: blur(8px);
+	opacity: 0;
+	transition: opacity 0.5s ease;
+}
+
+.cloud.visible {
+	opacity: 1;
+}
+
+.cloud.wisp {
+	width: 200px;
+	height: 40px;
+	filter: blur(15px);
+	animation: cloudDrift 8s linear infinite;
+}
+
+.cloud.large {
+	width: 400px;
+	height: 200px;
+	filter: blur(20px);
+	animation: cloudWhoosh 2s ease-out forwards;
+}
+
+@keyframes cloudDrift {
+	from {
+		transform: translateX(-100%);
+	}
+
+	to {
+		transform: translateX(200%);
+	}
+}
+
+@keyframes cloudWhoosh {
+	0% {
+		transform: translateX(-150%);
+		opacity: 0;
+	}
+
+	20% {
+		opacity: 1;
+	}
+
+	80% {
+		opacity: 1;
+	}
+
+	100% {
+		transform: translateX(150%);
+		opacity: 0;
+	}
+}
+
+/* Rain Container */
+#rain-container {
+	position: absolute;
+	width: 100%;
+	height: 100%;
+	z-index: 6;
+	pointer-events: none;
+	opacity: 0;
+	transition: opacity 0.3s ease;
+}
+
+#rain-container.active {
+	opacity: 1;
+}
+
+.rain-drop {
+	position: absolute;
+	width: 2px;
+	height: 30px;
+	background: linear-gradient(to bottom, transparent, rgba(200, 220, 255, 0.6));
+	animation: rainFall 0.5s linear infinite;
+}
+
+@keyframes rainFall {
+	from {
+		transform: translateY(-100%);
+	}
+
+	to {
+		transform: translateY(500px);
+	}
+}
+
+/* Lightning Flash */
+#lightning-flash {
+	position: absolute;
+	width: 100%;
+	height: 100%;
+	background: rgba(255, 255, 255, 0.9);
+	z-index: 7;
+	opacity: 0;
+	pointer-events: none;
+}
+
+#lightning-flash.flash {
+	animation: lightningFlash 0.3s ease-out;
+}
+
+@keyframes lightningFlash {
+
+	0%,
+	100% {
+		opacity: 0;
+	}
+
+	10% {
+		opacity: 1;
+	}
+
+	20% {
+		opacity: 0.3;
+	}
+
+	30% {
+		opacity: 0.8;
+	}
+
+	50% {
+		opacity: 0.2;
+	}
+}
+
+/* Fog Layer */
+#fog-layer {
+	position: absolute;
+	width: 100%;
+	height: 100%;
+	background: radial-gradient(ellipse at center,
+			rgba(180, 190, 200, 0.8) 0%,
+			rgba(150, 160, 170, 0.6) 50%,
+			rgba(120, 130, 140, 0.4) 100%);
+	z-index: 8;
+	opacity: 0;
+	transition: opacity 1s ease;
+}
+
+#fog-layer.light {
+	opacity: 0.3;
+}
+
+#fog-layer.medium {
+	opacity: 0.6;
+}
+
+#fog-layer.heavy {
+	opacity: 0.95;
+}
+
+/* Texture Overlay */
+#texture-overlay {
+	position: absolute;
+	top: 50%;
+	left: 35%;
+	transform: translate(-50%, -55%);
+	width: 600px;
+	height: auto;
+	opacity: 0.5;
+	z-index: 10;
+	pointer-events: none;
+	mix-blend-mode: overlay;
+}
+
+/* Cabin Image */
+#cabin-image {
+	position: absolute;
+	top: 50%;
+	left: 50%;
+	width: 100%;
+	height: 100%;
+	background-image: url('cabin6.png');
+	background-size: 120% 120%;
+	background-position: 50% 50%;
+	background-repeat: no-repeat;
+	transform: translate(-50%, -50%);
+	z-index: 20;
+	pointer-events: none;
+}
+
+/* Screen Display */
+#screen-display {
+	position: absolute;
+	width: 180px;
+	height: 140px;
+	top: 50%;
+	left: 62%;
+	transform: translate(-50%, -20%);
+	background: var(--screen-bg);
+	border-radius: 8px;
+	z-index: 30;
+	box-shadow:
+		0 0 20px rgba(0, 150, 255, 0.2),
+		inset 0 0 10px rgba(0, 100, 200, 0.1);
+	overflow: hidden;
+}
+
+#screen-content {
+	width: 100%;
+	height: 100%;
+	display: flex;
+	flex-direction: column;
+	padding: 8px;
+}
+
+#screen-header {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	padding-bottom: 6px;
+	border-bottom: 1px solid rgba(100, 150, 255, 0.3);
+	margin-bottom: 6px;
+}
+
+.airline-logo {
+	font-size: 10px;
+	font-weight: 600;
+	color: var(--phase1-accent);
+	letter-spacing: 1px;
+}
+
+#flight-status {
+	font-size: 8px;
+	color: #4ade80;
+	font-weight: 600;
+	padding: 2px 6px;
+	background: rgba(74, 222, 128, 0.15);
+	border-radius: 4px;
+}
+
+#flight-status.takeoff {
+	color: #fbbf24;
+	background: rgba(251, 191, 36, 0.15);
+}
+
+#flight-status.cruising {
+	color: #4ade80;
+	background: rgba(74, 222, 128, 0.15);
+}
+
+#flight-status.landing {
+	color: #f97316;
+	background: rgba(249, 115, 22, 0.15);
+}
+
+#screen-info {
+	flex: 1;
+	display: flex;
+	flex-direction: column;
+	gap: 3px;
+}
+
+.info-row {
+	display: flex;
+	justify-content: space-between;
+	font-size: 9px;
+}
+
+.info-label {
+	color: var(--text-muted);
+}
+
+.info-value {
+	color: var(--text-primary);
+	font-weight: 500;
+	text-align: right;
+	max-width: 100px;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+#screen-footer {
+	display: flex;
+	gap: 10px;
+	justify-content: center;
+	padding-top: 6px;
+	border-top: 1px solid rgba(100, 150, 255, 0.2);
+}
+
+#drums-indicator,
+#sample-indicator {
+	font-size: 12px;
+	opacity: 0.3;
+	transition: opacity 0.3s ease;
+}
+
+#drums-indicator.active,
+#sample-indicator.active {
+	opacity: 1;
+}
+
+/* Controls Panel */
+#controls-panel {
+	position: fixed;
+	bottom: 20px;
+	left: 20px;
+	display: flex;
+	gap: 10px;
+	align-items: center;
+	z-index: 100;
+}
+
+.control-btn {
+	padding: 10px 16px;
+	background: var(--btn-bg);
+	border: 1px solid var(--panel-border);
+	border-radius: 8px;
+	color: var(--text-primary);
+	font-family: 'Outfit', sans-serif;
+	font-size: 14px;
+	cursor: pointer;
+	transition: all 0.2s ease;
+}
+
+.control-btn:hover {
+	background: var(--btn-hover);
+	transform: translateY(-2px);
+}
+
+#connection-status {
+	color: var(--text-muted);
+	font-size: 12px;
+	padding: 6px 12px;
+	background: rgba(0, 0, 0, 0.5);
+	border-radius: 4px;
+}
+
+#connection-status.connected {
+	color: #4ade80;
+}
+
+/* Calibration Panel */
+#calibration-panel {
+	position: fixed;
+	top: 20px;
+	right: 20px;
+	width: 280px;
+	max-height: calc(100vh - 40px);
+	overflow-y: auto;
+	background: var(--panel-bg);
+	border: 1px solid var(--panel-border);
+	border-radius: 12px;
+	padding: 16px;
+	z-index: 100;
+}
+
+#calibration-panel.hidden {
+	display: none;
+}
+
+#calibration-panel h3 {
+	color: var(--text-primary);
+	font-size: 16px;
+	margin-bottom: 16px;
+	padding-bottom: 8px;
+	border-bottom: 1px solid var(--panel-border);
+}
+
+.calibration-section {
+	margin-bottom: 20px;
+}
+
+.calibration-section h4 {
+	color: var(--phase1-accent);
+	font-size: 13px;
+	margin-bottom: 10px;
+}
+
+.slider-group {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+}
+
+.slider-group label {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	color: var(--text-muted);
+	font-size: 12px;
+}
+
+.slider-group input[type="range"] {
+	flex: 1;
+	height: 4px;
+	background: rgba(100, 150, 255, 0.2);
+	border-radius: 2px;
+	appearance: none;
+	-webkit-appearance: none;
+}
+
+.slider-group input[type="range"]::-webkit-slider-thumb {
+	-webkit-appearance: none;
+	width: 14px;
+	height: 14px;
+	background: var(--phase1-accent);
+	border-radius: 50%;
+	cursor: pointer;
+}
+
+.slider-group span {
+	min-width: 30px;
+	text-align: right;
+	color: var(--text-primary);
+}
+
+.calibration-actions {
+	display: flex;
+	gap: 10px;
+	margin-top: 16px;
+}
+
+.action-btn {
+	flex: 1;
+	padding: 10px;
+	background: var(--btn-bg);
+	border: 1px solid var(--panel-border);
+	border-radius: 6px;
+	color: var(--text-primary);
+	font-family: 'Outfit', sans-serif;
+	font-size: 13px;
+	cursor: pointer;
+	transition: all 0.2s ease;
+}
+
+.action-btn:hover {
+	background: var(--btn-hover);
+}
+
+/* Sky Color Picker */
+.slider-group select {
+	flex: 1;
+	padding: 6px 8px;
+	background: rgba(30, 40, 60, 0.9);
+	border: 1px solid var(--panel-border);
+	border-radius: 4px;
+	color: var(--text-primary);
+	font-family: 'Outfit', sans-serif;
+	font-size: 11px;
+	cursor: pointer;
+}
+
+.slider-group select:focus {
+	outline: none;
+	border-color: var(--phase1-accent);
+}
+
+.sky-preview {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	margin-top: 10px;
+	padding-top: 10px;
+	border-top: 1px solid rgba(100, 150, 255, 0.1);
+}
+
+.sky-preview span {
+	color: var(--text-muted);
+	font-size: 11px;
+}
+
+.sky-swatch {
+	width: 40px;
+	height: 30px;
+	border-radius: 4px;
+	border: 1px solid rgba(255, 255, 255, 0.2);
+	cursor: pointer;
+	transition: transform 0.2s ease;
+}
+
+.sky-swatch:hover {
+	transform: scale(1.1);
+}
+
+/* Debug Panel */
+#debug-panel {
+	position: fixed;
+	bottom: 70px;
+	left: 20px;
+	background: var(--panel-bg);
+	border: 1px solid var(--panel-border);
+	border-radius: 12px;
+	padding: 16px;
+	z-index: 100;
+	max-width: 400px;
+}
+
+#debug-panel.hidden {
+	display: none;
+}
+
+#debug-panel h4 {
+	color: var(--text-primary);
+	font-size: 14px;
+	margin-bottom: 12px;
+}
+
+#state-buttons,
+#phase-buttons,
+#playback-controls {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+	margin-bottom: 10px;
+}
+
+#state-buttons button,
+#phase-buttons button,
+#playback-controls button {
+	padding: 6px 10px;
+	background: var(--btn-bg);
+	border: 1px solid var(--panel-border);
+	border-radius: 4px;
+	color: var(--text-primary);
+	font-family: 'Outfit', sans-serif;
+	font-size: 11px;
+	cursor: pointer;
+	transition: all 0.2s ease;
+}
+
+#state-buttons button:hover,
+#phase-buttons button:hover,
+#playback-controls button:hover {
+	background: var(--btn-hover);
+}
+
+#state-buttons button.active {
+	background: var(--phase1-accent);
+	color: #000;
+}
+
+/* Shake Animation */
+.shake {
+	animation: shake 0.15s infinite;
+}
+
+.shake-intense {
+	animation: shakeIntense 0.1s infinite;
+}
+
+@keyframes shake {
+
+	0%,
+	100% {
+		transform: translate(-50%, -55%) rotate(0deg);
+	}
+
+	25% {
+		transform: translate(-50.5%, -55.2%) rotate(0.5deg);
+	}
+
+	75% {
+		transform: translate(-49.5%, -54.8%) rotate(-0.5deg);
+	}
+}
+
+@keyframes shakeIntense {
+
+	0%,
+	100% {
+		transform: translate(-50%, -55%) rotate(0deg);
+	}
+
+	20% {
+		transform: translate(-51%, -56%) rotate(1deg);
+	}
+
+	40% {
+		transform: translate(-49%, -54%) rotate(-1deg);
+	}
+
+	60% {
+		transform: translate(-50.5%, -55.5%) rotate(0.5deg);
+	}
+
+	80% {
+		transform: translate(-49.5%, -54.5%) rotate(-0.5deg);
+	}
+}
+
+/* Tilt Animation for "The Turn" */
+.tilt-left {
+	animation: tiltLeft 2s ease-in-out infinite alternate;
+}
+
+.tilt-right {
+	animation: tiltRight 2s ease-in-out infinite alternate;
+}
+
+@keyframes tiltLeft {
+	from {
+		transform: translate(-50%, -55%) rotate(0deg) scale(1);
+	}
+
+	to {
+		transform: translate(-50%, -55%) rotate(-5deg) scale(1.05);
+	}
+}
+
+@keyframes tiltRight {
+	from {
+		transform: translate(-50%, -55%) rotate(0deg) scale(1);
+	}
+
+	to {
+		transform: translate(-50%, -55%) rotate(5deg) scale(1.05);
+	}
+}
+
+/* Deceptive Cadence - Inverted colors */
+.inverted {
+	filter: hue-rotate(180deg) saturate(1.5);
+	transition: filter 0.5s ease;
+}
+
+/* Sunrise glow effect */
+.sunrise-glow {
+	box-shadow: 0 0 100px 50px rgba(255, 200, 100, 0.4);
+}
+
+/* Night city lights effect */
+#city-layer.night {
+	background:
+		repeating-linear-gradient(90deg,
+			transparent,
+			transparent 15px,
+			rgba(20, 25, 35, 1) 15px,
+			rgba(20, 25, 35, 1) 17px),
+		linear-gradient(to bottom, transparent 20%, rgba(10, 15, 25, 1) 100%);
+}
+
+#city-layer.night::before {
+	content: '';
+	position: absolute;
+	width: 100%;
+	height: 100%;
+	background:
+		radial-gradient(circle at 10% 80%, rgba(255, 200, 100, 0.3) 0%, transparent 15%),
+		radial-gradient(circle at 30% 70%, rgba(255, 180, 80, 0.2) 0%, transparent 10%),
+		radial-gradient(circle at 60% 85%, rgba(255, 220, 120, 0.25) 0%, transparent 12%),
+		radial-gradient(circle at 85% 75%, rgba(255, 200, 100, 0.2) 0%, transparent 8%);
+	animation: cityGlow 3s ease-in-out infinite alternate;
+}
+
+@keyframes cityGlow {
+	from {
+		opacity: 0.7;
+	}
+
+	to {
+		opacity: 1;
+	}
+}
+
+/* Responsive adjustments */
+@media (max-width: 1200px) {
+	#sky-layer {
+		width: 400px;
+		height: 350px;
+	}
+
+	#screen-display {
+		width: 150px;
+		height: 120px;
+	}
+}

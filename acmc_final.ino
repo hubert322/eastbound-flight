@@ -46,7 +46,7 @@ float storedReverbDecay = 0.0;
 float storedReverbMix = 0.0;
 int systemVolume = 4095;
 
-enum PotCtrl { MELODY_RHYTHM, CHORUS, REVERB, MELODY_2_SOUND, WIND_CONTROL };
+enum PotCtrl { MELODY_RHYTHM, CHORUS, REVERB, MELODY_2_SOUND, WIND_CONTROL, DRUM_CONTROL };
 PotCtrl potCtrl = MELODY_RHYTHM;
 
 int tonicMidi = 44;
@@ -58,12 +58,49 @@ State *currState;
 // Drums
 // mSample<punk_rock_drums_NUM_CELLS, AUDIO_RATE, int16_t> punkRockDrums(punk_rock_drums_DATA);
 mSample<neo_soul_drums_NUM_CELLS, AUDIO_RATE, int16_t> neoSoulDrums(neo_soul_drums_DATA);
-bool playDrums = false;
+bool playDrums = false; // Controlled by DIP 4
+float drumSpeed = 1.0;
+int drumVolume = 4095;
+
+// Announcements
+// #include "mandarin_land.h"
+#include "landing_sample.h"	
+mSample<landing_sample_NUM_CELLS, AUDIO_RATE, int16_t> landingSample(landing_sample_DATA);
+bool playAnnouncement = false;
+
+// Performance
+bool isPerformanceRunning = false;
+unsigned long performanceStartTime = 0;
+int currentPhase = 1;
 
 /*
 WIND
 */
 Wind wind;
+
+// Helper for Visualizer Data
+String getVisualDescription(int phase, String chordName) {
+	// Simple mapping based on phase and chord tension/quality
+	if (chordName.indexOf("Maj7") != -1)
+		return "Crystal Clear";
+	if (chordName.indexOf("Dom7") != -1)
+		return "Stormy";
+	if (chordName.indexOf("Min7") != -1)
+		return "Cloudy";
+	if (chordName.indexOf("HalfDim") != -1)
+		return "Turbulent";
+	return "Hazy";
+}
+
+String getVibeDescription(int phase, String chordName) {
+	if (phase == 1)
+		return "Optimistic, Morning";
+	if (phase == 2)
+		return "Nostalgic, Sunset";
+	if (phase == 3)
+		return "Serious, Night";
+	return "Unknown";
+}
 
 void setup() {
 
@@ -81,6 +118,9 @@ void setup() {
 
 	// Drums
 	neoSoulDrums.setLoopingOn();
+
+	// Announcements
+	landingSample.start();
 
 	// Melody 2 Configuration
 	melody2.addTable(tri8192_int16_DATA, "Tri"); // Index 1
@@ -144,6 +184,22 @@ void printStatus() {
 	Serial.print(melody2.getVolume());
 	Serial.println(")");
 
+	// Dip 4: Drums
+	Serial.print("DIP 4 (Drums): ");
+	Serial.print(playDrums ? "ON" : "OFF");
+	Serial.print(" | Speed: ");
+	Serial.print(drumSpeed);
+	Serial.print(", Vol: ");
+	Serial.println(drumVolume);
+
+	// DIP 5: Sample
+	Serial.print("DIP 5 (Sample): ");
+	Serial.print(playAnnouncement ? "ON" : "OFF");
+	Serial.print(" | Speed: ");
+	Serial.print(drumSpeed);
+	Serial.print(", Vol: ");
+	Serial.println(drumVolume);
+
 	// DIP 6: Wind
 	Serial.print("DIP 6 (Wind): ");
 	Serial.print(wind.isEnabled() ? "ON" : "OFF");
@@ -154,10 +210,6 @@ void printStatus() {
 	Serial.print(", Vol: ");
 	Serial.print(wind.getVolume());
 	Serial.println(")");
-
-	// Other Controls
-	Serial.print("Drums: ");
-	Serial.println(playDrums ? "ON" : "OFF");
 
 	Serial.print("Modify Mode: ");
 	Serial.println(modify ? "ON" : "OFF");
@@ -176,6 +228,9 @@ void printStatus() {
 	case MELODY_2_SOUND:
 		Serial.println("MELODY_2_SOUND");
 		break;
+	case DRUM_CONTROL:
+		Serial.println("DRUM_CONTROL");
+		break;
 	case WIND_CONTROL:
 		Serial.println("WIND_CONTROL");
 		break;
@@ -185,6 +240,35 @@ void printStatus() {
 	Serial.print(", ");
 	Serial.println(meap.pot_vals[1]);
 	Serial.println("--------------");
+
+	// Visualizer Data Block
+	unsigned long elapsed = 0;
+	if (isPerformanceRunning) {
+		elapsed = (millis() - performanceStartTime) / 1000;
+	}
+
+	Serial.print("VISUAL:{");
+	Serial.print("\"time\":");
+	Serial.print(elapsed);
+	Serial.print(",\"phase\":");
+	Serial.print(currentPhase);
+	Serial.print(",\"chord\":\"");
+	Serial.print(currentChord.getName());
+	Serial.print("\"");
+	Serial.print(",\"state\":\"");
+	Serial.print(currState ? currState->getName() : "None");
+	Serial.print("\"");
+	Serial.print(",\"vibe\":\"");
+	Serial.print(getVibeDescription(currentPhase, currentChord.getName()));
+	Serial.print("\"");
+	Serial.print(",\"weather\":\"");
+	Serial.print(getVisualDescription(currentPhase, currentChord.getName()));
+	Serial.print("\"");
+	Serial.print(",\"drums\":");
+	Serial.print(playDrums ? "true" : "false");
+	Serial.print(",\"sample\":");
+	Serial.print(playAnnouncement ? "true" : "false");
+	Serial.println("}");
 }
 
 /** Called automatically at rate specified by CONTROL_RATE macro, most of your
@@ -208,7 +292,7 @@ void updateControl() {
 		currentChord = currState->getChord();
 		chordVoice.setChord(currentChord);
 
-		if (currState == &cadenceEnd) {
+		if (currState == &authenticCadence || currState == &halfCadence || currState == &deceptiveCadence) {
 			chordMetro.start(sixteenthLength * 2);
 		} else {
 			chordMetro.start(sixteenthLength);
@@ -247,8 +331,34 @@ void updateControl() {
 			lastVolume = meap.volume_val;
 			printStatus();
 		}
+	} else if (potCtrl == DRUM_CONTROL) {
+		// Drum Control
+		// Pot 0: Speed (0.5x to 2.0x)
+		// Pot 1: Volume
+		float speedVal = map(meap.pot_vals[0], 0, 4095, 50, 200) / 100.0;
+		if (abs(speedVal - drumSpeed) > 0.01) {
+			drumSpeed = speedVal;
+			neoSoulDrums.setSpeed(drumSpeed);
+		}
+
+		drumVolume = meap.pot_vals[1];
+
+		systemVolume = meap.volume_val; // Volume knob still controls system volume?
+		// "volume hijack" was for wind... sticking to system vol for now unless specified otherwise.
+		// Wait, user said "volume with pot1". So Drum Volume is Pot 1. Main knob is likely still system.
 	} else {
 		systemVolume = meap.volume_val;
+	}
+
+	// Performance Logic
+	if (isPerformanceRunning) {
+		unsigned long elapsed = (millis() - performanceStartTime) / 1000;
+		if (elapsed < 90)
+			currentPhase = 1;
+		else if (elapsed < 150)
+			currentPhase = 2;
+		else
+			currentPhase = 3;
 	}
 
 	// Effects
@@ -290,7 +400,10 @@ AudioOutput_t updateAudio() {
 
 	int64_t out_sample = chordVoice.next() + melody_out;
 	if (playDrums) {
-		out_sample += neoSoulDrums.next() << 4;
+		out_sample += (neoSoulDrums.next() * drumVolume) >> 8; // Apply drum volume
+	}
+	if (playAnnouncement) {
+		out_sample += landingSample.next() << 2;
 	}
 
 	// Wind
@@ -348,7 +461,7 @@ void updateTouch(int number, bool pressed) {
 	case 4:
 		if (pressed) { // Pad 4 pressed
 			Serial.println("t4 pressed");
-			playDrums = !playDrums;
+			potCtrl = DRUM_CONTROL;
 		} else { // Pad 4 released
 			Serial.println("t4 released");
 		}
@@ -356,6 +469,16 @@ void updateTouch(int number, bool pressed) {
 	case 5:
 		if (pressed) { // Pad 5 pressed
 			Serial.println("t5 pressed");
+			isPerformanceRunning = !isPerformanceRunning;
+			if (isPerformanceRunning) {
+				performanceStartTime = millis();
+				currentPhase = 1;
+				Serial.println("Performance Started!");
+			} else {
+				performanceStartTime = 0;
+				currentPhase = 1;
+				Serial.println("Performance Stopped.");
+			}
 		} else { // Pad 5 released
 			Serial.println("t5 released");
 		}
@@ -432,15 +555,19 @@ void updateDip(int number, bool up) {
 	case 4:
 		if (up) { // DIP 4 up
 			Serial.println("d4 up");
+			playDrums = true;
 		} else { // DIP 4 down
 			Serial.println("d4 down");
+			playDrums = false;
 		}
 		break;
 	case 5:
 		if (up) { // DIP 5 up
 			Serial.println("d5 up");
+			playAnnouncement = true;
 		} else { // DIP 5 down
 			Serial.println("d5 down");
+			playAnnouncement = false;
 		}
 		break;
 	case 6:

@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>Cabin Visualizer - ACMC Flight</title>
+	<link rel="stylesheet" href="cabin_styles.css">
+	<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.0/p5.min.js"></script>
+</head>
+
+<body>
+	<div id="visualizer-container">
+		<!-- p5.js canvas will be placed here -->
+		<div id="p5-container"></div>
+
+		<!-- Texture overlay (toggleable) -->
+		<img id="texture-overlay" src="textures.png" alt="Weather Textures" style="display: none;">
+
+		<!-- Cabin overlay -->
+		<div id="cabin-image"></div>
+
+		<!-- Screen display area -->
+		<div id="screen-display">
+			<div id="screen-content">
+				<div id="screen-header">
+					<span class="airline-logo">✈ ACMC AIRWAYS</span>
+					<span id="flight-status">BOARDING</span>
+				</div>
+				<div id="screen-info">
+					<div class="info-row">
+						<span class="info-label">Phase</span>
+						<span id="info-phase" class="info-value">—</span>
+					</div>
+					<div class="info-row">
+						<span class="info-label">Time</span>
+						<span id="info-time" class="info-value">0:00</span>
+					</div>
+					<div class="info-row">
+						<span class="info-label">State</span>
+						<span id="info-state" class="info-value">—</span>
+					</div>
+					<div class="info-row">
+						<span class="info-label">Chord</span>
+						<span id="info-chord" class="info-value">—</span>
+					</div>
+					<div class="info-row">
+						<span class="info-label">Weather</span>
+						<span id="info-weather" class="info-value">—</span>
+					</div>
+					<div class="info-row">
+						<span class="info-label">Vibe</span>
+						<span id="info-vibe" class="info-value">—</span>
+					</div>
+				</div>
+				<div id="screen-footer">
+					<span id="drums-indicator">🥁</span>
+					<span id="sample-indicator">🎵</span>
+				</div>
+			</div>
+		</div>
+	</div>
+
+	<!-- Controls Panel -->
+	<div id="controls-panel">
+		<button id="toggle-controls" class="control-btn">⚙️ Calibrate</button>
+		<button id="connect-serial" class="control-btn">🔌 Connect</button>
+		<span id="connection-status">Disconnected</span>
+	</div>
+
+	<!-- Calibration Panel (hidden by default) -->
+	<div id="calibration-panel" class="hidden">
+		<h3>Calibration</h3>
+
+		<div class="calibration-section">
+			<h4>Window</h4>
+			<div class="slider-group">
+				<label>X: <input type="range" id="window-x" min="-500" max="1000" value="0"><span
+						id="window-x-val">0</span></label>
+				<label>Y: <input type="range" id="window-y" min="-500" max="500" value="0"><span
+						id="window-y-val">0</span></label>
+				<label>Width: <input type="range" id="window-w" min="100" max="2000" value="400"><span
+						id="window-w-val">400</span></label>
+				<label>Height: <input type="range" id="window-h" min="100" max="2000" value="350"><span
+						id="window-h-val">350</span></label>
+				<label>SkewX: <input type="range" id="window-skewx" min="-30" max="30" value="0"><span
+						id="window-skewx-val">0</span>°</label>
+				<label>SkewY: <input type="range" id="window-skewy" min="-30" max="30" value="0"><span
+						id="window-skewy-val">0</span>°</label>
+				<label>Perspective: <input type="range" id="window-perspective" min="100" max="2000" value="800"><span
+						id="window-perspective-val">800</span></label>
+			</div>
+		</div>
+
+		<div class="calibration-section">
+			<h4>Screen</h4>
+			<div class="slider-group">
+				<label>X: <input type="range" id="screen-x" min="-2000" max="500" value="0"><span
+						id="screen-x-val">0</span></label>
+				<label>Y: <input type="range" id="screen-y" min="-500" max="500" value="0"><span
+						id="screen-y-val">0</span></label>
+				<label>Width: <input type="range" id="screen-w" min="50" max="1000" value="200"><span
+						id="screen-w-val">200</span></label>
+				<label>Height: <input type="range" id="screen-h" min="50" max="400" value="150"><span
+						id="screen-h-val">150</span></label>
+				<label>SkewX: <input type="range" id="screen-skewx" min="-30" max="30" value="0"><span
+						id="screen-skewx-val">0</span>°</label>
+				<label>SkewY: <input type="range" id="screen-skewy" min="-30" max="30" value="0"><span
+						id="screen-skewy-val">0</span>°</label>
+				<label>Rotation: <input type="range" id="screen-rotation" min="-45" max="45" value="0" step="0.5"><span
+						id="screen-rotation-val">0</span>°</label>
+				<label>RotateX: <input type="range" id="screen-rotatex" min="-45" max="45" value="0"><span
+						id="screen-rotatex-val">0</span>°</label>
+				<label>RotateY: <input type="range" id="screen-rotatey" min="-45" max="45" value="0"><span
+						id="screen-rotatey-val">0</span>°</label>
+			</div>
+		</div>
+
+		<div class="calibration-section">
+			<h4>Cabin Image</h4>
+			<div class="slider-group">
+				<label>X: <input type="range" id="cabin-x" min="-500" max="500" value="0"><span
+						id="cabin-x-val">0</span></label>
+				<label>Y: <input type="range" id="cabin-y" min="-500" max="500" value="0"><span
+						id="cabin-y-val">0</span></label>
+				<label>Width: <input type="range" id="cabin-width" min="50" max="200" value="100"><span
+						id="cabin-width-val">100</span>%</label>
+				<label>Height: <input type="range" id="cabin-height" min="50" max="200" value="100"><span
+						id="cabin-height-val">100</span>%</label>
+				<label>Obj X: <input type="range" id="cabin-objx" min="0" max="100" value="50"><span
+						id="cabin-objx-val">50</span>%</label>
+				<label>Obj Y: <input type="range" id="cabin-objy" min="0" max="100" value="50"><span
+						id="cabin-objy-val">50</span>%</label>
+			</div>
+		</div>
+
+		<div class="calibration-section">
+			<h4>Sky Colors</h4>
+			<div class="slider-group">
+				<label>Morning Sky:
+					<select id="sky-morning">
+						<option value="default">Default (Light Blue)</option>
+						<option value="deepAzure">Deep Azure (Richer Blue)</option>
+						<option value="dawnPink">Dawn Pink (Warm Pink)</option>
+						<option value="coolMorning">Cool Morning (Steel Blue)</option>
+						<option value="brightCyan">Bright Cyan (Vibrant)</option>
+						<option value="paleLavender">Pale Lavender (Dreamy)</option>
+					</select>
+				</label>
+				<label>Sunset Sky:
+					<select id="sky-sunset">
+						<option value="default">Default (Orange Gold)</option>
+						<option value="deepSunset">Deep Sunset (Red-Orange)</option>
+						<option value="purpleDusk">Purple Dusk (Purple to Orange)</option>
+						<option value="warmGold">Warm Gold (Rich Gold)</option>
+						<option value="pinkSunset">Pink Sunset (Coral Pink)</option>
+						<option value="fireSky">Fire Sky (Red to Orange)</option>
+					</select>
+				</label>
+				<label>Night Sky:
+					<select id="sky-night">
+						<option value="default">Default (Dark Blue)</option>
+						<option value="deepNight">Deep Night (Darker)</option>
+						<option value="purpleNight">Purple Night (Purple Tint)</option>
+						<option value="starryNight">Starry Night (Deep Indigo)</option>
+						<option value="midnightBlue">Midnight Blue (Classic)</option>
+					</select>
+				</label>
+			</div>
+			<div class="sky-preview">
+				<span>Preview: </span>
+				<div id="sky-preview-morning" class="sky-swatch" title="Morning"></div>
+				<div id="sky-preview-sunset" class="sky-swatch" title="Sunset"></div>
+				<div id="sky-preview-night" class="sky-swatch" title="Night"></div>
+			</div>
+		</div>
+
+		<div class="calibration-actions">
+			<button id="save-calibration" class="action-btn">💾 Save</button>
+			<button id="reset-calibration" class="action-btn">🔄 Reset</button>
+		</div>
+	</div>
+
+	<!-- Debug Panel for manual state testing -->
+	<div id="debug-panel" class="hidden">
+		<h4>Debug: Test States</h4>
+		<div id="state-buttons">
+			<button data-state="Tonic Expansion Tonic">TE: Tonic</button>
+			<button data-state="Tonic Expansion Pre-Dominant">TE: Pre-Dom</button>
+			<button data-state="Tonic Expansion Dominant">TE: Dominant</button>
+			<button data-state="Cadence Pre-Pre-Dominant">C: Pre-Pre-Dom</button>
+			<button data-state="Cadence Pre-Dominant">C: Pre-Dom</button>
+			<button data-state="Cadence Dominant">C: Dominant</button>
+			<button data-state="Authentic Cadence">Authentic</button>
+			<button data-state="Half Cadence">Half</button>
+			<button data-state="Deceptive Cadence">Deceptive</button>
+		</div>
+		<div id="phase-buttons">
+			<button data-phase="1">Phase 1 (Morning)</button>
+			<button data-phase="2">Phase 2 (Sunset)</button>
+			<button data-phase="3">Phase 3 (Night)</button>
+		</div>
+		<div id="playback-controls">
+			<button id="toggle-performance">▶️ Start Performance</button>
+		</div>
+	</div>
+
+	<script src="cabin_visualizer.js"></script>
+</body>
+
+</html>

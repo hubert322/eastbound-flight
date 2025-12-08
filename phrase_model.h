@@ -91,7 +91,9 @@ class Chord {
 	}
 
 	String getNoteName(int note) const {
-		String names[] = {"C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"};
+		// String names[] = {"C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"};
+		// Use flats for names instead because for this project we're doing Ab Major
+		String names[] = {"C", "Db", "D", "Eb", "E", "F", "Gb", "G", "Ab", "A", "Bb", "B"};
 		return names[note % 12];
 	}
 
@@ -168,7 +170,9 @@ State tonicExpansionDominant("Tonic Expansion Dominant");
 State cadencePrePreDominant("Cadence Pre-Pre-Dominant");
 State cadencePreDominant("Cadence Pre-Dominant");
 State cadenceDominant("Cadence Dominant");
-State cadenceEnd("Cadence End", false);
+State authenticCadence("Authentic Cadence", false);
+State halfCadence("Half Cadence", false);
+State deceptiveCadence("Deceptive Cadence", false);
 
 namespace PhraseModel {
 	State *createPhraseGraph(int tonicMidi) {
@@ -197,15 +201,21 @@ namespace PhraseModel {
 		cadencePreDominant.addChord(scaleChords[1]);
 		cadencePreDominant.addChord(scaleChords[3]);
 		cadencePreDominant.addState(&cadenceDominant);
+		cadencePreDominant.addState(&halfCadence);
 
 		cadenceDominant.addChord(scaleChords[4]);
-		cadenceDominant.addState(&cadenceEnd);
+		cadenceDominant.addState(&authenticCadence);
+		cadenceDominant.addState(&deceptiveCadence);
 
-		// Skipping Half Cadence for now
-		cadenceEnd.addChord(scaleChords[0]);
-		cadenceEnd.addChord(scaleChords[4]);
-		cadenceEnd.addChord(scaleChords[5]);
-		cadenceEnd.addState(&tonicExpansionTonic);
+		// Cadences
+		authenticCadence.addChord(scaleChords[0]);
+		authenticCadence.addState(&tonicExpansionTonic);
+
+		halfCadence.addChord(scaleChords[4]);
+		halfCadence.addState(&tonicExpansionTonic);
+
+		deceptiveCadence.addChord(scaleChords[5]);
+		deceptiveCadence.addState(&tonicExpansionTonic);
 
 		// Print out all the chords in each State
 		Serial.println("Tonic Expansion Tonic");
@@ -232,9 +242,17 @@ namespace PhraseModel {
 		for (int i = 0; i < cadenceDominant.currChordSize; ++i) {
 			Serial.println(cadenceDominant.chords[i].getName());
 		}
-		Serial.println("Cadence End");
-		for (int i = 0; i < cadenceEnd.currChordSize; ++i) {
-			Serial.println(cadenceEnd.chords[i].getName());
+		Serial.println("Authentic Cadence");
+		for (int i = 0; i < authenticCadence.currChordSize; ++i) {
+			Serial.println(authenticCadence.chords[i].getName());
+		}
+		Serial.println("Half Cadence");
+		for (int i = 0; i < halfCadence.currChordSize; ++i) {
+			Serial.println(halfCadence.chords[i].getName());
+		}
+		Serial.println("Deceptive Cadence");
+		for (int i = 0; i < deceptiveCadence.currChordSize; ++i) {
+			Serial.println(deceptiveCadence.chords[i].getName());
 		}
 
 		return &tonicExpansionTonic;
