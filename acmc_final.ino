@@ -23,11 +23,12 @@ MIDI_CREATE_INSTANCE(HardwareSerial, Serial1, MIDI); // defines MIDI in/out port
 EventDelay chordMetro;
 EventDelay melodyMetro;
 
-Chord outputChords[1];
+Chord currentChord;
+
+ChordVoice chordVoice;
 
 Melody<sin8192_int16_NUM_CELLS, AUDIO_RATE, int16_t> melody(sin8192_int16_DATA);
 Melody<sin8192_int16_NUM_CELLS, AUDIO_RATE, int16_t> melody2(sin8192_int16_DATA, "Sin");
-int *melodyNotes;
 int melodyNumber = 0;
 float swing = 0;
 
@@ -180,7 +181,8 @@ void updateControl() {
 	}
 
 	if (chordMetro.ready()) {
-		outputChords[0] = currState->getChord();
+		currentChord = currState->getChord();
+		chordVoice.setChord(currentChord);
 		currState = currState->nextState();
 
 		if (currState == &cadenceEnd) {
@@ -202,9 +204,9 @@ void updateControl() {
 		} else if (melodyNumber == 1 || melodyNumber == 3) {
 			melodyMetro.start(sixteenthLength / 4 * (1 - swing));
 		}
-		melodyNotes = outputChords[0].getMidiNotes();
-		melody.setFreq(mtof(melodyNotes[melodyNumber] + 12));
-		melody2.setFreq(mtof(melodyNotes[melodyNumber] + 12));
+		int note = currentChord.getMidiNote(melodyNumber);
+		melody.setFreq(mtof(note + 12));
+		melody2.setFreq(mtof(note + 12));
 		melodyNumber = (melodyNumber + 1) % 4;
 	}
 
@@ -257,7 +259,7 @@ AudioOutput_t updateAudio() {
 
 	melody_out += melody2.next() << 1;
 
-	int64_t out_sample = outputChords[0].nextChord() + melody_out;
+	int64_t out_sample = chordVoice.next() + melody_out;
 	if (playDrums) {
 		out_sample += neoSoulDrums.next() << 4;
 	}

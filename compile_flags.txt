@@ -8,5 +8,5 @@ Arduino.h
 -I/Users/hubert322/Documents/Arduino/libraries/MEAP-main
 -I/Users/hubert322/Documents/Arduino/libraries/MIDI_Library
 -I/Users/hubert322/Documents/Arduino/libraries/Mozzi
--I/Users/hubert322/Library/Arduino15/packages/esp32/hardware/esp32/3.3.0/cores/esp32/Arduino.h
--I/Users/hubert322/Library/Arduino15/packages/arduino/hardware/avr/1.8.6/cores/arduino/Arduino.h
+-I/Users/hubert322/Library/Arduino15/packages/esp32/hardware/esp32/3.3.0/cores/esp32
+-I/Users/hubert322/Library/Arduino15/packages/arduino/hardware/avr/1.8.6/cores/arduino
