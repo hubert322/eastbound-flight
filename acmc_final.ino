@@ -74,7 +74,10 @@ void setup() {
 	startMozzi(CONTROL_RATE); // starts Mozzi engine with control rate defined above
 
 	// ---------- YOUR SETUP CODE BELOW ----------
-	currState = PhraseModel::createPhraseGraph(tonicMidi);
+	// Using a dummy head because we would call .nextState when the metronome ticks
+	// This to ensure that we display the correct state in the printStatus function
+	currState = new State("Dummy");
+	currState->addState(PhraseModel::createPhraseGraph(tonicMidi));
 
 	// Drums
 	neoSoulDrums.setLoopingOn();
@@ -93,6 +96,18 @@ void loop() {
 
 void printStatus() {
 	Serial.println("\n--- Status ---");
+
+	// Public Status
+	Serial.print("Current State: ");
+	if (currState != NULL) {
+		Serial.println(currState->getName());
+	} else {
+		Serial.println("None");
+	}
+
+	// Current Chord
+	Serial.print("Current Chord: ");
+	Serial.println(currentChord.getName());
 
 	// DIP 0: Melody
 	Serial.print("DIP 0 (Melody): ");
@@ -189,9 +204,9 @@ void updateControl() {
 	}
 
 	if (chordMetro.ready()) {
+		currState = currState->nextState();
 		currentChord = currState->getChord();
 		chordVoice.setChord(currentChord);
-		currState = currState->nextState();
 
 		if (currState == &cadenceEnd) {
 			chordMetro.start(sixteenthLength * 2);
@@ -201,6 +216,7 @@ void updateControl() {
 
 		melodyNumber = 0;
 		melodyMetro.start(0);
+		printStatus();
 	}
 
 	if (melodyMetro.ready()) {

@@ -10,22 +10,26 @@ enum ChordQuality {
 };
 
 class Chord {
-private:
+  private:
 	int rootMidiNote;
 	int thirdInterval;
 	int fifthInterval;
 	int seventhInterval;
+	ChordQuality quality;
+	String romanNumeral;
 
-public:
-	Chord() : rootMidiNote(0), thirdInterval(0), fifthInterval(0), seventhInterval(0) {}
+  public:
+	Chord() : rootMidiNote(0), thirdInterval(0), fifthInterval(0), seventhInterval(0), romanNumeral("") {}
 
-	Chord(int rootMidiNote, ChordQuality chordQuality)
-		: rootMidiNote(rootMidiNote), thirdInterval(0), fifthInterval(0), seventhInterval(0) {
+	Chord(int rootMidiNote, ChordQuality chordQuality, String romanNumeral)
+		: rootMidiNote(rootMidiNote), thirdInterval(0), fifthInterval(0), seventhInterval(0),
+		  romanNumeral(romanNumeral) {
 		setChord(rootMidiNote, chordQuality);
 	}
 
 	void setChord(int rootMidiNote, ChordQuality chordQuality) {
 		this->rootMidiNote = rootMidiNote;
+		this->quality = chordQuality;
 		switch (chordQuality) {
 		case MAJOR_SEVENTH:
 			thirdInterval = 4;
@@ -66,10 +70,36 @@ public:
 			return rootMidiNote + seventhInterval;
 		return rootMidiNote; // Fallback
 	}
+
+	ChordQuality getQuality() const { return quality; }
+
+	String getQualityName() const {
+		switch (quality) {
+		case MAJOR_SEVENTH:
+			return "Maj7";
+		case DOMINANT_SEVENTH:
+			return "Dom7";
+		case MINOR_SEVENTH:
+			return "Min7";
+		case HALF_DIMINISHED_SEVENTH:
+			return "HalfDim7";
+		case FULL_DIMINISHED_SEVENTH:
+			return "Dim7";
+		default:
+			return "Unknown";
+		}
+	}
+
+	String getNoteName(int note) const {
+		String names[] = {"C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"};
+		return names[note % 12];
+	}
+
+	String getName() const { return getNoteName(rootMidiNote) + " " + getQualityName() + " (" + romanNumeral + ")"; }
 };
 
 class ChordVoice {
-public:
+  public:
 	mOscil<sin8192_int16_NUM_CELLS, AUDIO_RATE, int16_t> root;
 	mOscil<sin8192_int16_NUM_CELLS, AUDIO_RATE, int16_t> third;
 	mOscil<sin8192_int16_NUM_CELLS, AUDIO_RATE, int16_t> fifth;
@@ -89,16 +119,19 @@ public:
 };
 
 class State {
-public:
+  public:
 	Chord chords[10]; // Don't want to deal with dynamic allocation
 	State *states[5]; // Don't want to deal with dynamic allocation
 
+	String name;
 	int currChordSize = 0;
 	int currStateSize = 0;
 
-	State() {
-		states[0] = this;
-		++currStateSize;
+	State(String name, bool addSelf = true) : name(name) {
+		if (addSelf) {
+			states[0] = this;
+			++currStateSize;
+		}
 	}
 
 	void addChord(Chord chord) {
@@ -115,6 +148,10 @@ public:
 		return chords[meap.irand(0, currChordSize - 1)];
 	}
 
+	String getName() {
+		return name;
+	}
+
 	State *nextState() {
 		return states[meap.irand(0, currStateSize - 1)];
 	}
@@ -122,20 +159,21 @@ public:
 
 ChordQuality scaleChordQualities[7] = { MAJOR_SEVENTH, MINOR_SEVENTH, MINOR_SEVENTH, MAJOR_SEVENTH, DOMINANT_SEVENTH, MINOR_SEVENTH, HALF_DIMINISHED_SEVENTH };
 int scale[7] = { 0, 2, 4, 5, 7, 9, 11};
+String numerals[7] = {"I", "ii", "iii", "IV", "V", "vi", "vii"};
 Chord scaleChords[7];
 
-State tonicExpansionTonic;
-State tonicExpansionPreDominant;
-State tonicExpansionDominant;
-State cadencePrePreDominant;
-State cadencePreDominant;
-State cadenceDominant;
-State cadenceEnd;
+State tonicExpansionTonic("Tonic Expansion Tonic");
+State tonicExpansionPreDominant("Tonic Expansion Pre-Dominant");
+State tonicExpansionDominant("Tonic Expansion Dominant");
+State cadencePrePreDominant("Cadence Pre-Pre-Dominant");
+State cadencePreDominant("Cadence Pre-Dominant");
+State cadenceDominant("Cadence Dominant");
+State cadenceEnd("Cadence End", false);
 
 namespace PhraseModel {
 	State *createPhraseGraph(int tonicMidi) {
 		for (int i = 0; i < 7; ++i) {
-			scaleChords[i] = Chord(tonicMidi + scale[i], scaleChordQualities[i]);
+			scaleChords[i] = Chord(tonicMidi + scale[i], scaleChordQualities[i], numerals[i]);
 		}
 
 		tonicExpansionTonic.addChord(scaleChords[0]);
@@ -165,8 +203,39 @@ namespace PhraseModel {
 
 		// Skipping Half Cadence for now
 		cadenceEnd.addChord(scaleChords[0]);
+		cadenceEnd.addChord(scaleChords[4]);
 		cadenceEnd.addChord(scaleChords[5]);
 		cadenceEnd.addState(&tonicExpansionTonic);
+
+		// Print out all the chords in each State
+		Serial.println("Tonic Expansion Tonic");
+		for (int i = 0; i < tonicExpansionTonic.currChordSize; ++i) {
+			Serial.println(tonicExpansionTonic.chords[i].getName());
+		}
+		Serial.println("Tonic Expansion Pre-Dominant");
+		for (int i = 0; i < tonicExpansionPreDominant.currChordSize; ++i) {
+			Serial.println(tonicExpansionPreDominant.chords[i].getName());
+		}
+		Serial.println("Tonic Expansion Dominant");
+		for (int i = 0; i < tonicExpansionDominant.currChordSize; ++i) {
+			Serial.println(tonicExpansionDominant.chords[i].getName());
+		}
+		Serial.println("Cadence Pre-Pre-Dominant");
+		for (int i = 0; i < cadencePrePreDominant.currChordSize; ++i) {
+			Serial.println(cadencePrePreDominant.chords[i].getName());
+		}
+		Serial.println("Cadence Pre-Dominant");
+		for (int i = 0; i < cadencePreDominant.currChordSize; ++i) {
+			Serial.println(cadencePreDominant.chords[i].getName());
+		}
+		Serial.println("Cadence Dominant");
+		for (int i = 0; i < cadenceDominant.currChordSize; ++i) {
+			Serial.println(cadenceDominant.chords[i].getName());
+		}
+		Serial.println("Cadence End");
+		for (int i = 0; i < cadenceEnd.currChordSize; ++i) {
+			Serial.println(cadenceEnd.chords[i].getName());
+		}
 
 		return &tonicExpansionTonic;
 	}
