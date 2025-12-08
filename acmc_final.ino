@@ -19,6 +19,7 @@ MIDI_CREATE_INSTANCE(HardwareSerial, Serial1, MIDI); // defines MIDI in/out port
 #include "effects.h"
 #include "melody.h"
 #include "phrase_model.h"
+#include "wind.h"
 
 EventDelay chordMetro;
 EventDelay melodyMetro;
@@ -37,17 +38,15 @@ Chorus chorus(0.0, 0.0, 0.5);
 Reverb reverb(0.0, 0.8, 0.3, 0.0);
 
 bool modify = true;
-bool hasWind = false;
 
 // Effect State Tracking
 float storedChorusFreq = 0.0;
 float storedChorusDepth = 0.0;
 float storedReverbDecay = 0.0;
 float storedReverbMix = 0.0;
-int storedWindCutoff = 0;
-int storedWindResonance = 0;
+int systemVolume = 4095;
 
-enum PotCtrl { MELODY_RHYTHM, CHORUS, REVERB, MELODY_2_SOUND };
+enum PotCtrl { MELODY_RHYTHM, CHORUS, REVERB, MELODY_2_SOUND, WIND_CONTROL };
 PotCtrl potCtrl = MELODY_RHYTHM;
 
 int tonicMidi = 44;
@@ -64,9 +63,7 @@ bool playDrums = false;
 /*
 WIND
 */
-#include <tables/whitenoise8192_int8.h> // loads white noise wavetable
-mOscil<WHITENOISE8192_NUM_CELLS, AUDIO_RATE> white_noise(WHITENOISE8192_DATA);
-MultiResonantFilter filter;
+Wind wind;
 
 void setup() {
 
@@ -78,9 +75,6 @@ void setup() {
 
 	// ---------- YOUR SETUP CODE BELOW ----------
 	currState = PhraseModel::createPhraseGraph(tonicMidi);
-
-	// Wind
-	white_noise.setFreq(1);
 
 	// Drums
 	neoSoulDrums.setLoopingOn();
@@ -135,16 +129,20 @@ void printStatus() {
 	Serial.print(melody2.getVolume());
 	Serial.println(")");
 
+	// DIP 6: Wind
+	Serial.print("DIP 6 (Wind): ");
+	Serial.print(wind.isEnabled() ? "ON" : "OFF");
+	Serial.print(" | Cutoff: ");
+	Serial.print(wind.getCutoff());
+	Serial.print(", Res: ");
+	Serial.print(wind.getResonance());
+	Serial.print(", Vol: ");
+	Serial.print(wind.getVolume());
+	Serial.println(")");
+
 	// Other Controls
 	Serial.print("Drums: ");
-	Serial.print(playDrums ? "ON" : "OFF");
-	Serial.print(" | Wind: ");
-	Serial.print(hasWind ? "ON" : "OFF");
-	Serial.print(" (Cutoff: ");
-	Serial.print(storedWindCutoff);
-	Serial.print(", Res: ");
-	Serial.print(storedWindResonance);
-	Serial.println(")");
+	Serial.println(playDrums ? "ON" : "OFF");
 
 	Serial.print("Modify Mode: ");
 	Serial.println(modify ? "ON" : "OFF");
@@ -163,6 +161,9 @@ void printStatus() {
 	case MELODY_2_SOUND:
 		Serial.println("MELODY_2_SOUND");
 		break;
+	case WIND_CONTROL:
+		Serial.println("WIND_CONTROL");
+		break;
 	}
 	Serial.print("Current Pot Values: ");
 	Serial.print(meap.pot_vals[0]);
@@ -177,6 +178,11 @@ void printStatus() {
 void updateControl() {
 	meap.readInputs();
 	// ---------- YOUR updateControl CODE BELOW ----------
+	static int lastPot0 = -1;
+	static int lastPot1 = -1;
+	static int lastVolume = meap.volume_val;
+	static int potEpsilon = 20;
+
 	if (potCtrl == MELODY_RHYTHM && modify) {
 		sixteenthLength = map(meap.pot_vals[1], 0, 4095, 100, 2000);
 		// neoSoulDrums.setSpeed(250.0 / sixteenthLength);
@@ -213,12 +219,20 @@ void updateControl() {
 	}
 
 	// Wind
-	if (hasWind) {
-		int cutoff = map(meap.pot_vals[0], 0, 4095, 0, 255);
-		int resonance = map(meap.pot_vals[1], 0, 4095, 0, 255);
-		filter.setCutoffFreqAndResonance(cutoff, resonance);
-		storedWindCutoff = cutoff;
-		storedWindResonance = resonance;
+	if (potCtrl == WIND_CONTROL) {
+		if (modify) {
+			int cutoff = map(meap.pot_vals[0], 0, 4095, 0, 255);
+			int resonance = map(meap.pot_vals[1], 0, 4095, 0, 255);
+			wind.setCutOffAndResonance(cutoff, resonance);
+		}
+
+		wind.setVolume(meap.volume_val);
+		if (abs(wind.getVolume() - lastVolume) > potEpsilon) {
+			lastVolume = meap.volume_val;
+			printStatus();
+		}
+	} else {
+		systemVolume = meap.volume_val;
 	}
 
 	// Effects
@@ -239,10 +253,6 @@ void updateControl() {
 		melody2.setMorph(meap.pot_vals[0]);
 		melody2.setVolume(meap.pot_vals[1]);
 	}
-
-	static int lastPot0 = -1;
-	static int lastPot1 = -1;
-	int potEpsilon = 20;
 
 	if (abs(meap.pot_vals[0] - lastPot0) > potEpsilon || abs(meap.pot_vals[1] - lastPot1) > potEpsilon) {
 		lastPot0 = meap.pot_vals[0];
@@ -268,15 +278,9 @@ AudioOutput_t updateAudio() {
 	}
 
 	// Wind
-	int64_t white_noise_out_sample = white_noise.next();
-	filter.next(white_noise_out_sample);
-	white_noise_out_sample = filter.low();
+	out_sample += wind.next();
 
-	if (hasWind) {
-		out_sample += white_noise_out_sample << 4;
-	}
-
-	return StereoOutput::fromNBit(22, (out_sample * meap.volume_val) >> 12, (out_sample * meap.volume_val) >> 12);
+	return StereoOutput::fromNBit(22, (out_sample * systemVolume) >> 12, (out_sample * systemVolume) >> 12);
 }
 
 /**
@@ -343,7 +347,7 @@ void updateTouch(int number, bool pressed) {
 	case 6:
 		if (pressed) { // Pad 6 pressed
 			Serial.println("t6 pressed");
-			hasWind = !hasWind;
+			potCtrl = WIND_CONTROL;
 		} else { // Pad 6 released
 			Serial.println("t6 released");
 		}
@@ -426,8 +430,10 @@ void updateDip(int number, bool up) {
 	case 6:
 		if (up) { // DIP 6 up
 			Serial.println("d6 up");
+			wind.setEnabled(true);
 		} else { // DIP 6 down
 			Serial.println("d6 down");
+			wind.setEnabled(false);
 		}
 		break;
 	case 7:
