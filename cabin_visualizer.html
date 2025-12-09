@@ -61,73 +61,70 @@
 		<div id="technical-overlay" style="display: none;">
 			<h3>FLIGHT DATA RECORDER</h3>
 			<div class="tech-grid">
-				<div class="tech-col">
-					<div class="tech-group">
-						<h5>MELODY (DIP 0)</h5>
-						<div class="tech-row"><span>Status:</span> <span id="tech-mel-on" class="tech-val">OFF</span>
-						</div>
-						<div class="tech-row"><span>Swing:</span> <span id="tech-mel-sw" class="tech-val">0.00</span>
-						</div>
-						<div class="tech-row"><span>Len:</span> <span id="tech-mel-len" class="tech-val">500</span>
-						</div>
+				<div class="tech-group">
+					<h5>MELODY (DIP 0)</h5>
+					<div class="tech-row"><span>Status:</span> <span id="tech-mel-on" class="tech-val">OFF</span>
 					</div>
-					<div class="tech-group">
-						<h5>CHORUS (DIP 1)</h5>
-						<div class="tech-row"><span>Status:</span> <span id="tech-cho-on" class="tech-val">OFF</span>
-						</div>
-						<div class="tech-row"><span>Freq:</span> <span id="tech-cho-fr" class="tech-val">0.00</span>
-						</div>
-						<div class="tech-row"><span>Depth:</span> <span id="tech-cho-dp" class="tech-val">0.00</span>
-						</div>
+					<div class="tech-row"><span>Swing:</span> <span id="tech-mel-sw" class="tech-val">0.00</span>
 					</div>
-					<div class="tech-group">
-						<h5>REVERB (DIP 2)</h5>
-						<div class="tech-row"><span>Status:</span> <span id="tech-rev-on" class="tech-val">OFF</span>
-						</div>
-						<div class="tech-row"><span>Decay:</span> <span id="tech-rev-dec" class="tech-val">0.00</span>
-						</div>
-						<div class="tech-row"><span>Mix:</span> <span id="tech-rev-mix" class="tech-val">0.00</span>
-						</div>
+					<div class="tech-row"><span>Len:</span> <span id="tech-mel-len" class="tech-val">500</span>
 					</div>
 				</div>
-				<div class="tech-col">
-					<div class="tech-group">
-						<h5>MELODY 2 (DIP 3)</h5>
-						<div class="tech-row"><span>Status:</span> <span id="tech-mel2-on" class="tech-val">OFF</span>
-						</div>
-						<div class="tech-row"><span>Morph:</span> <span id="tech-mel2-mph" class="tech-val">Sin</span>
-						</div>
-						<div class="tech-row"><span>Vol:</span> <span id="tech-mel2-vol" class="tech-val">0</span></div>
+				<div class="tech-group">
+					<h5>CHORUS (DIP 1)</h5>
+					<div class="tech-row"><span>Status:</span> <span id="tech-cho-on" class="tech-val">OFF</span>
 					</div>
-					<div class="tech-group">
-						<h5>DRUMS (DIP 4)</h5>
-						<div class="tech-row"><span>Status:</span> <span id="tech-drm-on" class="tech-val">OFF</span>
-						</div>
-						<div class="tech-row"><span>Speed:</span> <span id="tech-drm-spd" class="tech-val">1.00</span>
-						</div>
-						<div class="tech-row"><span>Vol:</span> <span id="tech-drm-vol" class="tech-val">0</span></div>
+					<div class="tech-row"><span>Freq:</span> <span id="tech-cho-fr" class="tech-val">0.00</span>
 					</div>
-					<div class="tech-group">
-						<h5>WIND (DIP 6)</h5>
-						<div class="tech-row"><span>Status:</span> <span id="tech-wnd-on" class="tech-val">OFF</span>
-						</div>
-						<div class="tech-row"><span>Cut:</span> <span id="tech-wnd-cut" class="tech-val">0</span></div>
-						<div class="tech-row"><span>Res:</span> <span id="tech-wnd-res" class="tech-val">0</span></div>
-						<div class="tech-row"><span>Vol:</span> <span id="tech-wnd-vol" class="tech-val">0</span></div>
+					<div class="tech-row"><span>Depth:</span> <span id="tech-cho-dp" class="tech-val">0.00</span>
 					</div>
 				</div>
-				<div class="tech-col">
-					<div class="tech-group">
-						<h5>SYSTEM</h5>
-						<div class="tech-row"><span>Modify:</span> <span id="tech-mod" class="tech-val">OFF</span></div>
-						<div class="tech-row"><span>Ctrl:</span> <span id="tech-pot" class="tech-val">NONE</span></div>
-						<div class="tech-row"><span>Pots:</span> <span id="tech-vals" class="tech-val">[0, 0]</span>
-						</div>
+				<div class="tech-group">
+					<h5>REVERB (DIP 2)</h5>
+					<div class="tech-row"><span>Status:</span> <span id="tech-rev-on" class="tech-val">OFF</span>
 					</div>
-					<div class="tech-group">
-						<h5>STATE</h5>
-						<div class="tech-row"><span>Phase:</span> <span id="tech-phase" class="tech-val">1</span></div>
-						<div class="tech-row"><span>Time:</span> <span id="tech-time" class="tech-val">0</span></div>
+					<div class="tech-row"><span>Decay:</span> <span id="tech-rev-dec" class="tech-val">0.00</span>
+					</div>
+					<div class="tech-row"><span>Mix:</span> <span id="tech-rev-mix" class="tech-val">0.00</span>
+					</div>
+				</div>
+				<div class="tech-group">
+					<h5>MELODY 2 (DIP 3)</h5>
+					<div class="tech-row"><span>Status:</span> <span id="tech-mel2-on" class="tech-val">OFF</span>
+					</div>
+					<div class="tech-row"><span>Morph:</span> <span id="tech-mel2-mph" class="tech-val">Sin</span>
+					</div>
+					<div class="tech-row"><span>Vol:</span> <span id="tech-mel2-vol" class="tech-val">0</span></div>
+				</div>
+				<div class="tech-group">
+					<h5>DRUMS (DIP 4)</h5>
+					<div class="tech-row"><span>Status:</span> <span id="tech-drm-on" class="tech-val">OFF</span>
+					</div>
+					<div class="tech-row"><span>Speed:</span> <span id="tech-drm-spd" class="tech-val">1.00</span>
+					</div>
+					<div class="tech-row"><span>Vol:</span> <span id="tech-drm-vol" class="tech-val">0</span></div>
+				</div>
+				<div class="tech-group">
+					<h5>SAMPLE (DIP 5)</h5>
+					<div class="tech-row"><span>Status:</span> <span id="tech-smp-on" class="tech-val">OFF</span>
+					</div>
+					<div class="tech-row"><span>Speed:</span> <span id="tech-smp-spd" class="tech-val">1.00</span>
+					</div>
+					<div class="tech-row"><span>Vol:</span> <span id="tech-smp-vol" class="tech-val">0</span></div>
+				</div>
+				<div class="tech-group">
+					<h5>WIND (DIP 6)</h5>
+					<div class="tech-row"><span>Status:</span> <span id="tech-wnd-on" class="tech-val">OFF</span>
+					</div>
+					<div class="tech-row"><span>Cut:</span> <span id="tech-wnd-cut" class="tech-val">0</span></div>
+					<div class="tech-row"><span>Res:</span> <span id="tech-wnd-res" class="tech-val">0</span></div>
+					<div class="tech-row"><span>Vol:</span> <span id="tech-wnd-vol" class="tech-val">0</span></div>
+				</div>
+				<div class="tech-group">
+					<h5>SYSTEM</h5>
+					<div class="tech-row"><span>Modify:</span> <span id="tech-mod" class="tech-val">OFF</span></div>
+					<div class="tech-row"><span>Ctrl:</span> <span id="tech-pot" class="tech-val">NONE</span></div>
+					<div class="tech-row"><span>Pots:</span> <span id="tech-vals" class="tech-val">[0, 0]</span>
 					</div>
 				</div>
 			</div>

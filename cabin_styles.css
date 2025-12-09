@@ -437,10 +437,7 @@ body {
 	font-weight: 500;
 	font-size: var(--text-values-size);
 	text-align: right;
-	max-width: 100px;
-	overflow: hidden;
-	text-overflow: ellipsis;
-	white-space: nowrap;
+	/* Removed truncation to show full values */
 }
 
 #screen-footer {
@@ -868,16 +865,16 @@ body {
 }
 
 .tech-grid {
-	display: flex;
-	gap: 20px;
+	display: grid;
+	grid-template-columns: repeat(3, 1fr);
+	gap: 8px;
 }
 
-.tech-col {
-	display: flex;
-	flex-direction: column;
-	gap: 15px;
-	min-width: 140px;
+.tech-group:last-child {
+	grid-column: 1 / -1;
 }
+
+/* .tech-col removed */
 
 .tech-group {
 	background: rgba(255, 255, 255, 0.03);

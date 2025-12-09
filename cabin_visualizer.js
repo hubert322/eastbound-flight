@@ -105,7 +105,7 @@ const PHASE_CLASSES = ['phase-1', 'phase-2', 'phase-3'];
 
 // Current state
 let currentState = {
-	phase: 1,
+	phase: 'BOARDING',
 	time: 0,
 	chord: '',
 	stateName: '',
@@ -304,15 +304,18 @@ function drawSky() {
 	let top, bot;
 
 	// Get colors from selected palette for current phase
-	if (currentState.phase === 1) {
+	// Get colors from selected palette for current phase
+	const phaseStr = String(currentState.phase);
+	if (['1', 'BOARDING', 'TAKEOFF', 'CRUISING'].includes(phaseStr)) {
 		const palette = SKY_PALETTES.morning[selectedPalettes.morning] || SKY_PALETTES.morning.default;
 		top = color(palette.top[0], palette.top[1], palette.top[2]);
 		bot = color(palette.bottom[0], palette.bottom[1], palette.bottom[2]);
-	} else if (currentState.phase === 2) {
+	} else if (['2', 'PHASE_2'].includes(phaseStr)) {
 		const palette = SKY_PALETTES.sunset[selectedPalettes.sunset] || SKY_PALETTES.sunset.default;
 		top = color(palette.top[0], palette.top[1], palette.top[2]);
 		bot = color(palette.bottom[0], palette.bottom[1], palette.bottom[2]);
 	} else {
+		// Phase 3, Landing, Night
 		const palette = SKY_PALETTES.night[selectedPalettes.night] || SKY_PALETTES.night.default;
 		top = color(palette.top[0], palette.top[1], palette.top[2]);
 		bot = color(palette.bottom[0], palette.bottom[1], palette.bottom[2]);
@@ -365,7 +368,7 @@ function drawRunway(speed) {
 }
 
 function drawClouds() {
-	let cloudCol = (currentState.phase === 3) ? color(60, 65, 80) : color(255);
+	let cloudCol = (['3', 'PHASE_3', 'LANDING'].includes(String(currentState.phase))) ? color(60, 65, 80) : color(255);
 	// Tint darker if storm
 	cloudCol = lerpColor(cloudCol, color(30), vibe.fog * 0.5);
 
@@ -596,7 +599,7 @@ document.addEventListener('DOMContentLoaded', () => {
 	loadCalibration();
 
 	// Start with idle state
-	setPhase(1);
+	setPhase('BOARDING');
 	updateFlightStatus('BOARDING');
 });
 
@@ -657,32 +660,70 @@ async function readSerialData() {
 }
 
 function processSerialBuffer() {
-	// Look for VISUAL:{...} JSON blocks
-	const visualMatch = inputBuffer.match(/VISUAL:\{([^}]+)\}/);
+	// Look for start of VISUAL block
+	const startMarker = 'VISUAL:{';
+	const startIndex = inputBuffer.indexOf(startMarker);
 
-	if (visualMatch) {
-		try {
-			const jsonStr = '{' + visualMatch[1] + '}';
-			const data = JSON.parse(jsonStr);
-			handleVisualData(data);
-		} catch (e) {
-			console.warn('Failed to parse VISUAL data:', e);
+	if (startIndex !== -1) {
+		// We found the start. Now we need to find the matching closing brace.
+		let braceCount = 0;
+		let endIndex = -1;
+		let foundStart = false;
+
+		// Start scanning from the opening brace of the JSON object (after 'VISUAL:')
+		const jsonStartIndex = startIndex + 7; // Length of "VISUAL:" is 7
+
+		for (let i = jsonStartIndex; i < inputBuffer.length; i++) {
+			if (inputBuffer[i] === '{') {
+				braceCount++;
+				foundStart = true;
+			} else if (inputBuffer[i] === '}') {
+				braceCount--;
+			}
+
+			// If we started counting and returned to 0, we found the end
+			if (foundStart && braceCount === 0) {
+				endIndex = i;
+				break;
+			}
 		}
 
-		// Clear the processed part of the buffer
-		inputBuffer = inputBuffer.slice(inputBuffer.indexOf(visualMatch[0]) + visualMatch[0].length);
+		if (endIndex !== -1) {
+			// We have a complete JSON object literal
+			const jsonStr = inputBuffer.slice(jsonStartIndex, endIndex + 1);
+			try {
+				const data = JSON.parse(jsonStr);
+				handleVisualData(data);
+			} catch (e) {
+				console.warn('Failed to parse VISUAL data:', e);
+			}
+
+			// Clear the buffer up to the end of this block
+			inputBuffer = inputBuffer.slice(endIndex + 1);
+		} else {
+			// We have a start but no end yet.
+			// Just wait for more data.
+			// However, if buffer is huge and we still haven't found end, something might be wrong.
+			// For now, let the size limit handler below catch it if it grows too big.
+		}
+	} else {
+		// No start marker found. 
+		// If buffer is getting too big, discard old data to prevent overflow, but be careful not to cut off a partial marker.
+		if (inputBuffer.length > 2000) {
+			inputBuffer = inputBuffer.slice(-500); // Keep last 500 chars
+		}
 	}
 
-	// Prevent buffer from growing too large
-	if (inputBuffer.length > 5000) {
-		inputBuffer = inputBuffer.slice(-2000);
+	// Double check max size safety
+	if (inputBuffer.length > 10000) {
+		inputBuffer = "";
 	}
 }
 
 function handleVisualData(data) {
 	// Update current state
 	currentState.time = data.time || 0;
-	currentState.phase = data.phase || 1;
+	currentState.phase = data.phase || 'BOARDING';
 	currentState.chord = data.chord || '';
 	currentState.stateName = data.state || '';
 	currentState.weather = data.weather || '';
@@ -695,12 +736,17 @@ function handleVisualData(data) {
 	currentState.isPerformanceRunning = currentState.time > 0;
 
 	// Handle performance start (takeoff)
-	if (!wasRunning && currentState.isPerformanceRunning) {
+	// Handle performance start (takeoff) - Logic removed, now relying on 'TAKEOFF' phase trigger
+	// if (!wasRunning && currentState.isPerformanceRunning) {
+	// 	triggerTakeoff();
+	// }
+
+	// Trigger Takeoff/Landing based on Phase Change
+	const prevPhase = currentState.prevPhase;
+	if (data.phase === 'TAKEOFF' && prevPhase !== 'TAKEOFF') {
 		triggerTakeoff();
 	}
-
-	// Handle performance end (landing) - around 3 minutes
-	if (currentState.time >= 180 && currentState.isPerformanceRunning) {
+	if (data.phase === 'LANDING' && prevPhase !== 'LANDING') {
 		triggerLanding();
 	}
 
@@ -709,10 +755,22 @@ function handleVisualData(data) {
 	setPhase(currentState.phase);
 	applyStateToVibe(currentState.stateName);
 
+	// Force stationary state for Boarding/Arrived
+	const p = String(currentState.phase);
+	if (p === 'BOARDING' || displayState === 'ARRIVED') {
+		target.speed = 0;
+		target.altitude = 0;
+		target.shake = 0;
+		target.bank = 0;
+	}
+
 	// Update Technical Overlay
 	if (data.details) {
 		updateTechnicalDisplay(data.details);
 	}
+
+	// Store for change detection
+	currentState.prevPhase = data.phase;
 }
 
 // ============================================================================
@@ -721,7 +779,6 @@ function handleVisualData(data) {
 
 function setPhase(phase) {
 	currentState.phase = phase;
-	// Phase is now handled in drawSky() for the p5.js visualizer
 }
 
 // ============================================================================
@@ -773,7 +830,7 @@ function triggerLanding() {
 
 	setTimeout(() => {
 		target.altitude = 0;
-		target.speed = 5;
+		target.speed = 0;
 		target.shake = 0;
 		updateFlightStatus('ARRIVED');
 		displayState = 'ARRIVED';
@@ -811,12 +868,12 @@ function updateScreenDisplay() {
 }
 
 function getPhaseLabel(phase) {
-	switch (phase) {
-		case 1: return 'Morning';
-		case 2: return 'Sunset';
-		case 3: return 'Night';
-		default: return '—';
-	}
+	// Handle both old int and new string formats
+	const p = String(phase);
+	if (['1', 'BOARDING', 'TAKEOFF', 'CRUISING'].includes(p)) return 'Morning';
+	if (['2', 'PHASE_2'].includes(p)) return 'Sunset';
+	if (['3', 'PHASE_3', 'LANDING'].includes(p)) return 'Night';
+	return '—';
 }
 
 function updateFlightStatus(status) {
@@ -1380,9 +1437,12 @@ function initDebugPanel() {
 	// Phase buttons
 	document.querySelectorAll('#phase-buttons button').forEach(btn => {
 		btn.addEventListener('click', () => {
-			const phase = parseInt(btn.dataset.phase);
+			// Updated to handle 1,2,3 for dev buttons
+			const val = btn.dataset.phase;
+			const map = { '1': 'BOARDING', '2': 'PHASE_2', '3': 'PHASE_3' };
+			const phase = map[val] || val;
+
 			setPhase(phase);
-			currentState.phase = phase;
 			updateScreenDisplay();
 		});
 	});
@@ -1427,21 +1487,29 @@ function simulatePerformance() {
 		currentState.time++;
 
 		// Update phase based on time
-		if (currentState.time < 90) {
-			currentState.phase = 1;
+		if (currentState.time < 15) {
+			currentState.phase = 'BOARDING';
+		} else if (currentState.time < 30) {
+			currentState.phase = 'TAKEOFF';
+		} else if (currentState.time < 90) {
+			currentState.phase = 'CRUISING';
 		} else if (currentState.time < 150) {
-			currentState.phase = 2;
+			currentState.phase = 'PHASE_2';
+		} else if (currentState.time < 180) {
+			currentState.phase = 'PHASE_3';
 		} else {
-			currentState.phase = 3;
+			currentState.phase = 'LANDING';
 		}
 
-		setPhase(currentState.phase);
-		updateScreenDisplay();
-
-		// Trigger landing near end
-		if (currentState.time >= 180 && currentState.time < 182) {
-			triggerLanding();
-		}
+		handleVisualData({
+			time: currentState.time,
+			phase: currentState.phase,
+			state: 'Simulated State',
+			chord: 'CMSim',
+			weather: 'SimWeather',
+			vibe: 'SimVibe',
+			isPerformanceRunning: true
+		});
 
 		if (currentState.time >= 200) {
 			currentState.isPerformanceRunning = false;
@@ -1498,6 +1566,13 @@ function updateTechnicalDisplay(d) {
 		set('tech-drm-vol', d.drm.vol);
 	}
 
+	// Sample
+	if (d.smp) {
+		set('tech-smp-on', d.smp.on ? 'ON' : 'OFF');
+		set('tech-smp-spd', d.smp.spd !== undefined ? d.smp.spd.toFixed(2) : '-');
+		set('tech-smp-vol', d.smp.vol);
+	}
+
 	// Wind
 	if (d.wnd) {
 		set('tech-wnd-on', d.wnd.on ? 'ON' : 'OFF');
@@ -1511,11 +1586,5 @@ function updateTechnicalDisplay(d) {
 	set('tech-pot', d.pot);
 	if (d.vals && d.vals.length >= 2) {
 		set('tech-vals', `[${d.vals[0]}, ${d.vals[1]}]`);
-	}
-
-	// State (from Global)
-	set('tech-phase', currentState.phase);
-	if (elements.infoTime) {
-		set('tech-time', elements.infoTime.textContent);
 	}
 }

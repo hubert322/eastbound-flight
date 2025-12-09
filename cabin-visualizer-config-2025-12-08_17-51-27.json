@@ -1,0 +1,50 @@
+{
+  "calibration": {
+    "window": {
+      "x": 730,
+      "y": -34,
+      "w": 1040,
+      "h": 1187,
+      "skewX": 0,
+      "skewY": 0,
+      "perspective": 800
+    },
+    "screen": {
+      "x": -780,
+      "y": -101,
+      "w": 581,
+      "h": 279,
+      "skewX": 16,
+      "skewY": -3,
+      "rotation": -3.5,
+      "rotateX": 10,
+      "rotateY": 12
+    },
+    "cabin": {
+      "x": -14,
+      "y": 0,
+      "w": 109,
+      "h": 200,
+      "objX": 44,
+      "objY": 0
+    },
+    "text": {
+      "logo": 22,
+      "status": 20,
+      "labels": 20,
+      "values": 20,
+      "icons": 30
+    },
+    "tech": {
+      "x": 20,
+      "y": 20,
+      "scale": 100
+    }
+  },
+  "skyPalettes": {
+    "morning": "deepAzure",
+    "sunset": "default",
+    "night": "starryNight"
+  },
+  "exportedAt": "2025-12-08T22:51:27.988Z"
+}

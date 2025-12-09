@@ -72,7 +72,12 @@ bool playAnnouncement = false;
 // Performance
 bool isPerformanceRunning = false;
 unsigned long performanceStartTime = 0;
-int currentPhase = 1;
+
+enum FlightPhase { BOARDING, TAKEOFF, CRUISING, PHASE_2, PHASE_3, LANDING };
+
+FlightPhase currentFlightPhase = BOARDING;
+unsigned long takeoffStartTime = 0;
+const unsigned long TAKEOFF_DURATION = 15000; // 15 seconds
 
 /*
 WIND
@@ -86,7 +91,7 @@ float windCutCurrent = 255.0;
 float windResCurrent = 255.0;
 
 // Helper for Visualizer Data
-String getVisualDescription(int phase, String chordName) {
+String getVisualDescription(FlightPhase phase, String chordName) {
 	// Simple mapping based on phase and chord tension/quality
 	if (chordName.indexOf("Maj7") != -1)
 		return "Crystal Clear";
@@ -99,14 +104,20 @@ String getVisualDescription(int phase, String chordName) {
 	return "Hazy";
 }
 
-String getVibeDescription(int phase, String chordName) {
-	if (phase == 1)
+String getVibeDescription(FlightPhase phase, String chordName) {
+	switch (phase) {
+	case BOARDING:
+	case TAKEOFF:
+	case CRUISING:
 		return "Optimistic, Morning";
-	if (phase == 2)
+	case PHASE_2:
 		return "Nostalgic, Sunset";
-	if (phase == 3)
+	case PHASE_3:
+	case LANDING:
 		return "Serious, Night";
-	return "Unknown";
+	default:
+		return "Unknown";
+	}
 }
 
 void updateWindState() {
@@ -292,8 +303,28 @@ void printStatus() {
 	// Basic Info
 	Serial.print("\"time\":");
 	Serial.print(elapsed);
-	Serial.print(",\"phase\":");
-	Serial.print(currentPhase);
+	Serial.print(",\"phase\":\"");
+	switch (currentFlightPhase) {
+	case BOARDING:
+		Serial.print("BOARDING");
+		break;
+	case TAKEOFF:
+		Serial.print("TAKEOFF");
+		break;
+	case CRUISING:
+		Serial.print("CRUISING");
+		break;
+	case PHASE_2:
+		Serial.print("PHASE_2");
+		break;
+	case PHASE_3:
+		Serial.print("PHASE_3");
+		break;
+	case LANDING:
+		Serial.print("LANDING");
+		break;
+	}
+	Serial.print("\"");
 	Serial.print(",\"chord\":\"");
 	Serial.print(currentChord.getName());
 	Serial.print("\"");
@@ -301,10 +332,10 @@ void printStatus() {
 	Serial.print(currState ? currState->getName() : "None");
 	Serial.print("\"");
 	Serial.print(",\"vibe\":\"");
-	Serial.print(getVibeDescription(currentPhase, currentChord.getName()));
+	Serial.print(getVibeDescription(currentFlightPhase, currentChord.getName()));
 	Serial.print("\"");
 	Serial.print(",\"weather\":\"");
-	Serial.print(getVisualDescription(currentPhase, currentChord.getName()));
+	Serial.print(getVisualDescription(currentFlightPhase, currentChord.getName()));
 	Serial.print("\"");
 
 	// Details Object
@@ -499,13 +530,13 @@ void updateControl() {
 
 	// Performance Logic
 	if (isPerformanceRunning) {
-		unsigned long elapsed = (millis() - performanceStartTime) / 1000;
-		if (elapsed < 90)
-			currentPhase = 1;
-		else if (elapsed < 150)
-			currentPhase = 2;
-		else
-			currentPhase = 3;
+		if (currentFlightPhase == TAKEOFF) {
+			if (millis() - takeoffStartTime > TAKEOFF_DURATION) {
+				currentFlightPhase = CRUISING;
+				Serial.println("Auto Transition: TAKEOFF -> CRUISING");
+				printStatus();
+			}
+		}
 	}
 
 	// Effects
@@ -634,11 +665,11 @@ void updateTouch(int number, bool pressed) {
 			isPerformanceRunning = !isPerformanceRunning;
 			if (isPerformanceRunning) {
 				performanceStartTime = millis();
-				currentPhase = 1;
+				currentFlightPhase = BOARDING;
 				Serial.println("Performance Started!");
 			} else {
 				performanceStartTime = 0;
-				currentPhase = 1;
+				currentFlightPhase = BOARDING;
 				Serial.println("Performance Stopped.");
 			}
 		} else { // Pad 5 released
@@ -656,7 +687,26 @@ void updateTouch(int number, bool pressed) {
 	case 7:
 		if (pressed) { // Pad 7 pressed
 			Serial.println("t7 pressed");
-			modify = !modify;
+			// Phase Transitions
+			if (isPerformanceRunning) {
+				if (currentFlightPhase == BOARDING) {
+					currentFlightPhase = TAKEOFF;
+					takeoffStartTime = millis();
+					Serial.println("Transition: BOARDING -> TAKEOFF");
+				} else if (currentFlightPhase == CRUISING) {
+					currentFlightPhase = PHASE_2;
+					Serial.println("Transition: CRUISING -> PHASE_2");
+				} else if (currentFlightPhase == PHASE_2) {
+					currentFlightPhase = PHASE_3;
+					Serial.println("Transition: PHASE_2 -> PHASE_3");
+				} else if (currentFlightPhase == PHASE_3) {
+					currentFlightPhase = LANDING;
+					Serial.println("Transition: PHASE_3 -> LANDING");
+				} else if (currentFlightPhase == LANDING) {
+					currentFlightPhase = BOARDING;
+					Serial.println("Transition: LANDING -> BOARDING");
+				}
+			}
 		} else { // Pad 7 released
 			Serial.println("t7 released");
 		}
@@ -745,8 +795,10 @@ void updateDip(int number, bool up) {
 	case 7:
 		if (up) { // DIP 7 up
 			Serial.println("d7 up");
+			modify = true;
 		} else { // DIP 7 down
 			Serial.println("d7 down");
+			modify = false;
 		}
 		break;
 	}
