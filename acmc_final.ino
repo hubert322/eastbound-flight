@@ -13,8 +13,6 @@ MIDI_CREATE_INSTANCE(HardwareSerial, Serial1, MIDI); // defines MIDI in/out port
 #include <tables/sin8192_int16.h>
 #include <tables/sq8192_int16.h>  // loads square wave
 #include <tables/tri8192_int16.h> // loads triangle wave
-// #include "punk_rock_drums.h"
-#include "neo_soul_drums.h"
 
 #include "effects.h"
 #include "melody.h"
@@ -57,14 +55,13 @@ int sixteenthLength = 500;
 State *currState;
 
 // Drums
-// mSample<punk_rock_drums_NUM_CELLS, AUDIO_RATE, int16_t> punkRockDrums(punk_rock_drums_DATA);
+#include "neo_soul_drums.h"
 mSample<neo_soul_drums_NUM_CELLS, AUDIO_RATE, int16_t> neoSoulDrums(neo_soul_drums_DATA);
 bool playDrums = false; // Controlled by DIP 4
 float drumSpeed = 1.0;
 int drumVolume = 4095;
 
 // Announcements
-// #include "mandarin_land.h"
 #include "landing_sample.h"
 mSample<landing_sample_NUM_CELLS, AUDIO_RATE, int16_t> landingSample(landing_sample_DATA);
 bool playAnnouncement = false;
@@ -79,9 +76,7 @@ FlightPhase currentFlightPhase = BOARDING;
 unsigned long takeoffStartTime = 0;
 const unsigned long TAKEOFF_DURATION = 15000; // 15 seconds
 
-/*
-WIND
-*/
+// Wind
 Wind wind;
 int windVolTarget = 4095;
 int windCutTarget = 255;
@@ -462,7 +457,6 @@ void updateControl() {
 
 	if (potCtrl == MELODY_RHYTHM && modify) {
 		sixteenthLength = map(meap.pot_vals[1], 0, 4095, 100, 2000);
-		// neoSoulDrums.setSpeed(250.0 / sixteenthLength);
 	}
 
 	if (chordMetro.ready()) {
@@ -513,17 +507,16 @@ void updateControl() {
 		// Drum Control
 		// Pot 0: Speed (0.5x to 2.0x)
 		// Pot 1: Volume
-		float speedVal = map(meap.pot_vals[0], 0, 4095, 50, 200) / 100.0;
-		if (abs(speedVal - drumSpeed) > 0.01) {
-			drumSpeed = speedVal;
-			neoSoulDrums.setSpeed(drumSpeed);
+		if (modify) {
+			float speedVal = map(meap.pot_vals[0], 0, 4095, 50, 200) / 100.0;
+			if (abs(speedVal - drumSpeed) > 0.01) {
+				drumSpeed = speedVal;
+				neoSoulDrums.setSpeed(drumSpeed);
+			}
+
+			drumVolume = meap.pot_vals[1];
 		}
-
-		drumVolume = meap.pot_vals[1];
-
-		systemVolume = meap.volume_val; // Volume knob still controls system volume?
-		// "volume hijack" was for wind... sticking to system vol for now unless specified otherwise.
-		// Wait, user said "volume with pot1". So Drum Volume is Pot 1. Main knob is likely still system.
+		systemVolume = meap.volume_val;
 	} else {
 		systemVolume = meap.volume_val;
 	}
@@ -620,9 +613,6 @@ void updateTouch(int number, bool pressed) {
 		if (pressed) { // Pad 0 pressed
 			Serial.println("t0 pressed ");
 			potCtrl = MELODY_RHYTHM;
-			melody.setTable(sin8192_int16_DATA);
-			// melody.setTable(sq8192_int16_DATA);
-			// melody.setTable(saw8192_int16_DATA);
 		} else { // Pad 0 released
 			Serial.println("t0 released");
 		}
